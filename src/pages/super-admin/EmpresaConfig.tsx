@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Company } from '@/types/database.types';
+import { StripeConfigCard } from '@/components/super-admin/StripeConfigCard';
 
 export default function SuperAdminEmpresaConfig() {
   const { id } = useParams<{ id: string }>();
@@ -258,21 +259,10 @@ export default function SuperAdminEmpresaConfig() {
           </Card>
 
           {/* Integração Stripe */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Integração Stripe</CardTitle>
-              <CardDescription>Configure as credenciais do Stripe</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                As chaves do Stripe são configuradas de forma segura através de secrets.
-                Entre em contato com o suporte para configurar.
-              </p>
-              {company.stripe_secret_key_encrypted && (
-                <p className="text-sm text-primary mt-2">✓ Stripe configurado</p>
-              )}
-            </CardContent>
-          </Card>
+          <StripeConfigCard
+            companyId={company.id}
+            hasStripeConfigured={!!company.stripe_secret_key_encrypted}
+          />
         </div>
 
         <div className="mt-6 flex justify-end">
