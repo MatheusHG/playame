@@ -5,12 +5,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { PlayerProvider } from "@/contexts/PlayerContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/public/LandingPage";
+import CompraSucesso from "./pages/public/CompraSucesso";
 
 // Super Admin Pages
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -23,6 +26,9 @@ import SuperAdminAuditoria from "./pages/super-admin/Auditoria";
 // Company Admin Pages
 import EmpresaDashboard from "./pages/empresa/Dashboard";
 import EmpresaSorteios from "./pages/empresa/Sorteios";
+import NovoSorteio from "./pages/empresa/NovoSorteio";
+import EditarSorteio from "./pages/empresa/EditarSorteio";
+import VisualizarSorteio from "./pages/empresa/VisualizarSorteio";
 import EmpresaJogadores from "./pages/empresa/Jogadores";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
@@ -33,14 +39,19 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TenantProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
+        <PlayerProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                
+                {/* Public Company Landing Page */}
+                <Route path="/empresa/:slug" element={<LandingPage />} />
+                <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
 
               {/* Super Admin routes */}
               <Route
@@ -111,6 +122,30 @@ const App = () => (
                 }
               />
               <Route
+                path="/empresa/:slug/sorteios/novo"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <NovoSorteio />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/sorteios/:id"
+                element={
+                  <ProtectedRoute requiredRole="COLABORADOR">
+                    <VisualizarSorteio />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/sorteios/:id/editar"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <EditarSorteio />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/empresa/:slug/jogadores"
                 element={
                   <ProtectedRoute requiredRole="COLABORADOR">
@@ -134,16 +169,15 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="/empresa/:slug" element={<Navigate to="dashboard" replace />} />
-
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </TenantProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+      </PlayerProvider>
+    </TenantProvider>
+  </AuthProvider>
+</QueryClientProvider>
 );
 
 export default App;
