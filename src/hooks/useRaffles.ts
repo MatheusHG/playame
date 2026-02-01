@@ -322,5 +322,23 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
     },
   });
 
-  return { createBatch, addNumber, removeNumber, finalizeBatch, deleteBatch };
+  const updateBatch = useMutation({
+    mutationFn: async ({ batchId, name }: { batchId: string; name: string }) => {
+      const { error } = await supabase
+        .from('draw_batches')
+        .update({ name })
+        .eq('id', batchId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
+      toast({ title: 'Rodada atualizada!' });
+    },
+    onError: (error: Error) => {
+      toast({ variant: 'destructive', title: 'Erro ao atualizar rodada', description: error.message });
+    },
+  });
+
+  return { createBatch, addNumber, removeNumber, finalizeBatch, deleteBatch, updateBatch };
 }

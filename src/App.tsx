@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/public/LandingPage";
+import SorteioPage from "./pages/public/SorteioPage";
 import CompraSucesso from "./pages/public/CompraSucesso";
 
 // Super Admin Pages
@@ -51,6 +52,7 @@ const App = () => (
                 
                 {/* Public Company Landing Page */}
                 <Route path="/empresa/:slug" element={<LandingPage />} />
+                <Route path="/empresa/:slug/sorteio/:raffleId" element={<SorteioPage />} />
                 <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
 
               {/* Super Admin routes */}

@@ -113,15 +113,21 @@ export default function SuperAdminEmpresaConfig() {
       title={`Configurar: ${company.name}`}
       description="Configure as informações e integrações da empresa"
     >
-      <Button
-        variant="ghost"
-        className="mb-6"
-        onClick={() => navigate('/super-admin/empresas')}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Voltar para Empresas
-      </Button>
-
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/super-admin/empresas')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar para Empresas
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => navigate(`/empresa/${company.slug}/dashboard`)}
+        >
+          Acessar Empresa
+        </Button>
+      </div>
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Informações Básicas */}
