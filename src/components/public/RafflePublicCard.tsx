@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DollarSign, Hash, Trophy, Clock, ShoppingCart, Loader2, Check } from 'lucide-react';
+import { DollarSign, Hash, Trophy, Clock, ShoppingCart, Loader2, Check, Timer, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInSeconds, differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 
 type Raffle = Database['public']['Tables']['raffles']['Row'] & {
@@ -28,11 +31,76 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
   const [buyDialogOpen, setBuyDialogOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
 
   const ticketPrice = Number(raffle.ticket_price);
   const totalPrice = ticketPrice * quantity;
 
   const prizeTiers = raffle.prize_tiers?.sort((a, b) => b.hits_required - a.hits_required) || [];
+
+  // Fetch total sales for prize calculation
+  const { data: totalSales = 0 } = useQuery({
+    queryKey: ['raffle-sales', raffle.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('raffle_id', raffle.id)
+        .eq('status', 'succeeded');
+
+      if (error) throw error;
+      return data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    },
+  });
+
+  // Calculate prize pool
+  const calculatePrizePool = (): number => {
+    if (raffle.prize_mode === 'FIXED') {
+      return Number(raffle.fixed_prize_value) || 0;
+    }
+    if (raffle.prize_mode === 'PERCENT_ONLY') {
+      return totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+    }
+    // FIXED_PLUS_PERCENT
+    return (Number(raffle.fixed_prize_value) || 0) + totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+  };
+
+  const prizePool = calculatePrizePool();
+
+  // Update time remaining countdown
+  useEffect(() => {
+    if (!raffle.scheduled_at) {
+      setTimeRemaining('');
+      return;
+    }
+
+    const updateTime = () => {
+      const now = new Date();
+      const endDate = new Date(raffle.scheduled_at!);
+      const diff = differenceInSeconds(endDate, now);
+
+      if (diff <= 0) {
+        setTimeRemaining('Encerrado');
+        return;
+      }
+
+      const days = differenceInDays(endDate, now);
+      const hours = differenceInHours(endDate, now) % 24;
+      const minutes = differenceInMinutes(endDate, now) % 60;
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h`);
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m`);
+      } else {
+        setTimeRemaining(`${minutes}m`);
+      }
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [raffle.scheduled_at]);
 
   const handleBuyClick = () => {
     if (!isAuthenticated) {
@@ -97,15 +165,24 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Hash className="h-4 w-4 text-primary" />
+              <Trophy className="h-4 w-4 text-primary" />
               <div>
-                <p className="font-semibold">{raffle.numbers_per_ticket} números</p>
-                <p className="text-xs text-muted-foreground">{raffle.number_range_start}-{raffle.number_range_end}</p>
+                <p className="font-semibold">R$ {prizePool.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">prêmio total</p>
               </div>
             </div>
           </div>
 
-          {/* Prize Tiers */}
+          {/* Time Remaining */}
+          {timeRemaining && (
+            <div className="flex items-center gap-2 text-sm bg-accent/50 rounded-lg px-3 py-2">
+              <Timer className="h-4 w-4 text-primary" />
+              <span className="font-medium">{timeRemaining}</span>
+              <span className="text-muted-foreground">restante</span>
+            </div>
+          )}
+
+          {/* Prize Tiers - Show real values */}
           {prizeTiers.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium flex items-center gap-2">
@@ -113,16 +190,22 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
                 Faixas de Prêmio
               </p>
               <div className="space-y-1">
-                {prizeTiers.slice(0, 3).map((tier) => (
-                  <div key={tier.id} className="flex justify-between text-sm bg-muted/50 rounded px-2 py-1">
-                    <span>{tier.hits_required} acertos</span>
-                    <span className="font-medium">
-                      {tier.prize_type === 'object'
-                        ? tier.object_description
-                        : `${tier.prize_percentage}% do prêmio`}
-                    </span>
-                  </div>
-                ))}
+                {prizeTiers.slice(0, 3).map((tier) => {
+                  const tierPrize = tier.prize_type === 'money' 
+                    ? prizePool * (Number(tier.prize_percentage) / 100)
+                    : 0;
+                  
+                  return (
+                    <div key={tier.id} className="flex justify-between text-sm bg-muted/50 rounded px-2 py-1">
+                      <span>{tier.hits_required} acertos</span>
+                      <span className="font-medium">
+                        {tier.prize_type === 'object'
+                          ? tier.object_description
+                          : `R$ ${tierPrize.toFixed(2)}`}
+                      </span>
+                    </div>
+                  );
+                })}
                 {prizeTiers.length > 3 && (
                   <p className="text-xs text-muted-foreground text-center">
                     + {prizeTiers.length - 3} faixas
@@ -132,17 +215,29 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
             </div>
           )}
 
-          {/* Draw count */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>{raffle.current_draw_count || 0} números sorteados</span>
+          {/* Info row */}
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Hash className="h-4 w-4" />
+              <span>{raffle.numbers_per_ticket} números</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              <span>{raffle.current_draw_count || 0} sorteados</span>
+            </div>
           </div>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-2">
           <Button className="w-full" size="lg" onClick={handleBuyClick}>
             <ShoppingCart className="mr-2 h-5 w-5" />
             Comprar Cartela
+          </Button>
+          <Button variant="outline" className="w-full" asChild>
+            <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
+              <Eye className="mr-2 h-4 w-4" />
+              Ver Detalhes
+            </Link>
           </Button>
         </CardFooter>
       </Card>

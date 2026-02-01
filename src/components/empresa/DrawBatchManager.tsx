@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Plus, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Check, X, Loader2, Pencil } from 'lucide-react';
 import { useDrawBatches, useDrawBatchMutations, type DrawBatchWithNumbers } from '@/hooks/useRaffles';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ export function DrawBatchManager({
   isRaffleActive,
 }: DrawBatchManagerProps) {
   const { data: batches, isLoading } = useDrawBatches(raffleId);
-  const { createBatch, addNumber, removeNumber, finalizeBatch, deleteBatch } = useDrawBatchMutations(raffleId);
+  const { createBatch, addNumber, removeNumber, finalizeBatch, deleteBatch, updateBatch } = useDrawBatchMutations(raffleId);
 
   const [newBatchName, setNewBatchName] = useState('');
   const [newNumbers, setNewNumbers] = useState<Record<string, string>>({});
@@ -126,6 +126,7 @@ export function DrawBatchManager({
                 onRemoveNumber={(numberId) => removeNumber.mutate(numberId)}
                 onFinalize={() => setConfirmFinalize(batch.id)}
                 onDelete={() => setConfirmDelete(batch.id)}
+                onUpdateName={(name) => updateBatch.mutate({ batchId: batch.id, name })}
                 isAddingNumber={addNumber.isPending}
               />
             ))}
@@ -170,6 +171,7 @@ interface BatchCardProps {
   onRemoveNumber: (numberId: string) => void;
   onFinalize: () => void;
   onDelete: () => void;
+  onUpdateName: (name: string) => void;
   isAddingNumber: boolean;
 }
 
@@ -185,8 +187,11 @@ function BatchCard({
   onRemoveNumber,
   onFinalize,
   onDelete,
+  onUpdateName,
   isAddingNumber,
 }: BatchCardProps) {
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(batch.name || '');
   const isFinalized = !!batch.finalized_at;
   const canEdit = isRaffleActive && !isFinalized;
   const sortedNumbers = [...batch.draw_numbers].sort((a, b) => a.number - b.number);
@@ -199,11 +204,46 @@ function BatchCard({
     return true;
   };
 
+  const handleSaveName = () => {
+    if (editedName.trim() !== batch.name) {
+      onUpdateName(editedName.trim());
+    }
+    setIsEditingName(false);
+  };
+
   return (
     <div className={cn('border rounded-lg p-4', isFinalized && 'bg-muted/30')}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <h4 className="font-semibold">{batch.name || `Rodada ${batch.draw_order}`}</h4>
+          {isEditingName ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="h-8 w-40"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName();
+                  if (e.key === 'Escape') setIsEditingName(false);
+                }}
+              />
+              <Button size="sm" variant="ghost" onClick={handleSaveName}>
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <h4 className="font-semibold">{batch.name || `Rodada ${batch.draw_order}`}</h4>
+              {canEdit && (
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingName(true)}>
+                  <Pencil className="h-3 w-3" />
+                </Button>
+              )}
+            </>
+          )}
           <Badge variant={isFinalized ? 'secondary' : 'default'}>
             {isFinalized ? 'Finalizada' : 'Em andamento'}
           </Badge>
