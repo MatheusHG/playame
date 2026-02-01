@@ -15,6 +15,7 @@ import { formatDistanceToNow, differenceInSeconds, differenceInDays, differenceI
 import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { PublicRanking } from '@/components/public/PublicRanking';
+import { PrizeTiersDisplay } from '@/components/public/PrizeTiersDisplay';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -261,7 +262,6 @@ export default function SorteioPage() {
     );
   }
 
-  const sortedTiers = [...(raffle.prize_tiers || [])].sort((a, b) => b.hits_required - a.hits_required);
 
   return (
     <div className="min-h-screen bg-background">
@@ -498,47 +498,13 @@ export default function SorteioPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Prize Tiers */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  Faixas de Prêmio
-                </CardTitle>
-                <CardDescription>Prêmios reais baseados no pool atual</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {sortedTiers.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">Nenhuma faixa configurada</p>
-                ) : (
-                  sortedTiers.map((tier) => {
-                    const tierPrize =
-                      tier.prize_type === 'money' ? prizePool * (Number(tier.prize_percentage) / 100) : 0;
-
-                    return (
-                      <div key={tier.id} className="p-3 rounded-lg bg-muted/50 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline">{tier.hits_required} acertos</Badge>
-                          {tier.prize_type === 'money' ? (
-                            <span className="font-bold text-primary">R$ {tierPrize.toFixed(2)}</span>
-                          ) : (
-                            <Badge variant="secondary">Prêmio Físico</Badge>
-                          )}
-                        </div>
-                        {tier.prize_type === 'object' && tier.object_description && (
-                          <p className="text-sm text-muted-foreground">{tier.object_description}</p>
-                        )}
-                        {tier.purchase_allowed_until_draw_count && (
-                          <p className="text-xs text-muted-foreground">
-                            Até {tier.purchase_allowed_until_draw_count}ª rodada
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
+            {/* Prize Tiers with Winners */}
+            <PrizeTiersDisplay 
+              raffleId={raffle.id}
+              prizeTiers={raffle.prize_tiers || []}
+              prizePool={prizePool}
+              currentDrawCount={raffle.current_draw_count || 0}
+            />
 
             {/* Raffle Info */}
             <Card>
