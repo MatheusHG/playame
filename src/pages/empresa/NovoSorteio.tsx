@@ -34,6 +34,7 @@ export default function NovoSorteio() {
         prize_percent_of_sales: data.prize_percent_of_sales,
         status: data.status,
         scheduled_at: data.scheduled_at || null,
+        image_url: data.image_url || null,
       },
       {
         onSuccess: (raffle) => {
@@ -55,7 +56,12 @@ export default function NovoSorteio() {
       </Button>
 
       <div className="max-w-3xl">
-        <RaffleForm onSubmit={handleSubmit} isLoading={createRaffle.isPending} submitLabel="Criar Sorteio" />
+        <RaffleForm 
+          companyId={company?.id || ''} 
+          onSubmit={handleSubmit} 
+          isLoading={createRaffle.isPending} 
+          submitLabel="Criar Sorteio" 
+        />
       </div>
     </EmpresaLayout>
   );

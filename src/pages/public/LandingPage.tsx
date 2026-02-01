@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { RafflePublicCard } from '@/components/public/RafflePublicCard';
 import { PublicRanking } from '@/components/public/PublicRanking';
+import { BannerCarousel } from '@/components/public/BannerCarousel';
 
 export default function LandingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -31,6 +32,23 @@ export default function LandingPage() {
   }, [slug, setCompanySlug]);
 
   useCompanyBranding();
+
+  // Fetch banners
+  const { data: banners = [] } = useQuery({
+    queryKey: ['public-banners', company?.id],
+    enabled: !!company?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_banners')
+        .select('*')
+        .eq('company_id', company!.id)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Fetch active raffles
   const { data: raffles, isLoading: rafflesLoading } = useQuery({
@@ -123,6 +141,11 @@ export default function LandingPage() {
           </div>
         </div>
       </header>
+
+      {/* Banner Carousel */}
+      {banners.length > 0 && (
+        <BannerCarousel banners={banners} className="mx-auto max-w-7xl mt-4 px-4" />
+      )}
 
       {/* Hero Section */}
       <section

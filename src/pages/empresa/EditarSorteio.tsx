@@ -39,6 +39,7 @@ export default function EditarSorteio() {
           prize_percent_of_sales: data.prize_percent_of_sales,
           status: data.status,
           scheduled_at: data.scheduled_at || null,
+          image_url: data.image_url || null,
           rules_version: (raffle.rules_version || 1) + 1,
         },
       },
@@ -74,6 +75,7 @@ export default function EditarSorteio() {
 
       <div className="max-w-3xl">
         <RaffleForm
+          companyId={company?.id || ''}
           defaultValues={{
             name: raffle.name,
             description: raffle.description || '',
@@ -86,6 +88,7 @@ export default function EditarSorteio() {
             prize_percent_of_sales: Number(raffle.prize_percent_of_sales) || 100,
             status: raffle.status || 'draft',
             scheduled_at: raffle.scheduled_at?.slice(0, 16) || '',
+            image_url: raffle.image_url || null,
           }}
           onSubmit={handleSubmit}
           isLoading={updateRaffle.isPending}

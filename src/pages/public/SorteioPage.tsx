@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Trophy, Clock, DollarSign, Hash, ShoppingCart, Loader2, Check, Shuffle, Ticket, Timer, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Trophy, Clock, DollarSign, Hash, ShoppingCart, Loader2, Check, Shuffle, Ticket, Timer, AlertCircle, Plus, Minus, X } from 'lucide-react';
 import { formatDistanceToNow, differenceInSeconds, differenceInDays, differenceInHours, differenceInMinutes, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
@@ -22,6 +22,11 @@ type Raffle = Database['public']['Tables']['raffles']['Row'] & {
   prize_tiers: Database['public']['Tables']['prize_tiers']['Row'][];
 };
 
+interface TicketSelection {
+  id: number;
+  numbers: number[];
+}
+
 export default function SorteioPage() {
   const { slug, raffleId } = useParams<{ slug: string; raffleId: string }>();
   const { setCompanySlug, company, loading: tenantLoading } = useTenant();
@@ -30,7 +35,8 @@ export default function SorteioPage() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const [tickets, setTickets] = useState<TicketSelection[]>([{ id: 1, numbers: [] }]);
+  const [activeTicketId, setActiveTicketId] = useState(1);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
@@ -136,22 +142,52 @@ export default function SorteioPage() {
 
   const prizePool = calculatePrizePool();
 
+  const activeTicket = tickets.find(t => t.id === activeTicketId) || tickets[0];
+  const selectedNumbers = activeTicket?.numbers || [];
+
   const toggleNumber = (num: number) => {
     if (!raffle) return;
     
-    if (selectedNumbers.includes(num)) {
-      setSelectedNumbers(selectedNumbers.filter((n) => n !== num));
-    } else if (selectedNumbers.length < raffle.numbers_per_ticket) {
-      setSelectedNumbers([...selectedNumbers, num]);
-    }
+    setTickets(prev => prev.map(ticket => {
+      if (ticket.id !== activeTicketId) return ticket;
+      
+      if (ticket.numbers.includes(num)) {
+        return { ...ticket, numbers: ticket.numbers.filter((n) => n !== num) };
+      } else if (ticket.numbers.length < raffle.numbers_per_ticket) {
+        return { ...ticket, numbers: [...ticket.numbers, num] };
+      }
+      return ticket;
+    }));
   };
 
   const generateRandomNumbers = () => {
     if (!raffle) return;
     
     const shuffled = [...availableNumbers].sort(() => Math.random() - 0.5);
-    setSelectedNumbers(shuffled.slice(0, raffle.numbers_per_ticket));
+    setTickets(prev => prev.map(ticket => {
+      if (ticket.id !== activeTicketId) return ticket;
+      return { ...ticket, numbers: shuffled.slice(0, raffle.numbers_per_ticket) };
+    }));
   };
+
+  const addTicket = () => {
+    const newId = Math.max(...tickets.map(t => t.id)) + 1;
+    setTickets(prev => [...prev, { id: newId, numbers: [] }]);
+    setActiveTicketId(newId);
+  };
+
+  const removeTicket = (ticketId: number) => {
+    if (tickets.length <= 1) return;
+    
+    setTickets(prev => prev.filter(t => t.id !== ticketId));
+    if (activeTicketId === ticketId) {
+      setActiveTicketId(tickets.find(t => t.id !== ticketId)?.id || tickets[0].id);
+    }
+  };
+
+  const allTicketsComplete = raffle ? tickets.every(t => t.numbers.length === raffle.numbers_per_ticket) : false;
+  const ticketPrice = raffle ? Number(raffle.ticket_price) : 0;
+  const totalPrice = ticketPrice * tickets.length;
 
   const handlePurchase = async () => {
     if (!player || !raffle) return;
@@ -163,8 +199,8 @@ export default function SorteioPage() {
           companyId: raffle.company_id,
           playerId: player.id,
           raffleId: raffle.id,
-          quantity: 1,
-          selectedNumbers: selectedNumbers.length === raffle.numbers_per_ticket ? selectedNumbers : undefined,
+          quantity: tickets.length,
+          ticketNumbers: tickets.map(t => t.numbers.sort((a, b) => a - b)),
         },
       });
 
@@ -226,7 +262,6 @@ export default function SorteioPage() {
   }
 
   const sortedTiers = [...(raffle.prize_tiers || [])].sort((a, b) => b.hits_required - a.hits_required);
-  const ticketPrice = Number(raffle.ticket_price);
 
   return (
     <div className="min-h-screen bg-background">
@@ -253,11 +288,15 @@ export default function SorteioPage() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero with optional image */}
       <section
-        className="py-8 text-white"
+        className="py-8 text-white relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})`,
+          background: raffle.image_url 
+            ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(${raffle.image_url})` 
+            : `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
         <div className="container mx-auto px-4">
@@ -299,77 +338,133 @@ export default function SorteioPage() {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Number Selection */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Ticket Tabs */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Hash className="h-5 w-5" />
-                  Escolha seus Números
-                </CardTitle>
-                <CardDescription>
-                  Selecione {raffle.numbers_per_ticket} números entre {raffle.number_range_start} e {raffle.number_range_end}
-                </CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Ticket className="h-5 w-5" />
+                    Suas Cartelas ({tickets.length})
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={addTicket}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adicionar Cartela
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between mb-4">
-                  <Badge variant="outline" className="text-lg px-3 py-1">
-                    {selectedNumbers.length} / {raffle.numbers_per_ticket} selecionados
-                  </Badge>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setSelectedNumbers([])}>
-                      Limpar
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={generateRandomNumbers}>
-                      <Shuffle className="mr-1 h-4 w-4" />
-                      Sortear
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-10 gap-1 sm:gap-2">
-                  {availableNumbers.map((num) => {
-                    const isSelected = selectedNumbers.includes(num);
-                    const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
-
-                    return (
-                      <button
-                        key={num}
-                        onClick={() => toggleNumber(num)}
-                        disabled={isFull}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tickets.map((ticket, index) => (
+                    <div key={ticket.id} className="relative">
+                      <Button
+                        variant={activeTicketId === ticket.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setActiveTicketId(ticket.id)}
                         className={cn(
-                          'aspect-square rounded-lg font-mono text-sm sm:text-base font-bold transition-all',
-                          'flex items-center justify-center',
-                          isSelected
-                            ? 'bg-primary text-primary-foreground shadow-lg scale-105'
-                            : 'bg-muted hover:bg-muted/80',
-                          isFull && 'opacity-50 cursor-not-allowed'
+                          'pr-8',
+                          ticket.numbers.length === raffle.numbers_per_ticket && 'border-green-500'
                         )}
                       >
-                        {String(num).padStart(2, '0')}
-                      </button>
-                    );
-                  })}
+                        Cartela {index + 1}
+                        {ticket.numbers.length === raffle.numbers_per_ticket && (
+                          <Check className="h-3 w-3 ml-1 text-green-500" />
+                        )}
+                      </Button>
+                      {tickets.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTicket(ticket.id);
+                          }}
+                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
 
-                {selectedNumbers.length > 0 && (
-                  <div className="mt-6 p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2">Seus números selecionados:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedNumbers
-                        .sort((a, b) => a - b)
-                        .map((num) => (
-                          <Badge key={num} variant="default" className="font-mono text-lg px-3">
-                            {String(num).padStart(2, '0')}
-                          </Badge>
-                        ))}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-medium">Cartela {tickets.findIndex(t => t.id === activeTicketId) + 1}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Selecione {raffle.numbers_per_ticket} números entre {raffle.number_range_start} e {raffle.number_range_end}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-sm">
+                        {selectedNumbers.length} / {raffle.numbers_per_ticket}
+                      </Badge>
+                      <Button variant="outline" size="sm" onClick={() => setTickets(prev => prev.map(t => t.id === activeTicketId ? { ...t, numbers: [] } : t))}>
+                        Limpar
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={generateRandomNumbers}>
+                        <Shuffle className="mr-1 h-4 w-4" />
+                        Sortear
+                      </Button>
                     </div>
                   </div>
-                )}
+
+                  <div className="grid grid-cols-10 gap-1 sm:gap-2">
+                    {availableNumbers.map((num) => {
+                      const isSelected = selectedNumbers.includes(num);
+                      const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
+
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => toggleNumber(num)}
+                          disabled={isFull}
+                          className={cn(
+                            'aspect-square rounded-lg font-mono text-sm sm:text-base font-bold transition-all',
+                            'flex items-center justify-center',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground shadow-lg scale-105'
+                              : 'bg-muted hover:bg-muted/80',
+                            isFull && 'opacity-50 cursor-not-allowed'
+                          )}
+                        >
+                          {String(num).padStart(2, '0')}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedNumbers.length > 0 && (
+                    <div className="mt-4 p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">Números selecionados:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedNumbers
+                          .sort((a, b) => a - b)
+                          .map((num) => (
+                            <Badge key={num} variant="default" className="font-mono text-sm px-2">
+                              {String(num).padStart(2, '0')}
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex-col gap-4 border-t pt-6">
+                {/* Summary */}
+                <div className="w-full bg-muted rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
+                    <span>R$ {totalPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>Total</span>
+                    <span>R$ {totalPrice.toFixed(2)}</span>
+                  </div>
+                </div>
+
                 <Button
                   size="lg"
                   className="w-full"
-                  disabled={selectedNumbers.length !== raffle.numbers_per_ticket}
+                  disabled={!allTicketsComplete}
                   onClick={() => {
                     if (!isAuthenticated) {
                       openAuth('login');
@@ -379,7 +474,10 @@ export default function SorteioPage() {
                   }}
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
-                  Comprar Cartela - R$ {ticketPrice.toFixed(2)}
+                  {allTicketsComplete 
+                    ? `Comprar ${tickets.length} Cartela(s) - R$ ${totalPrice.toFixed(2)}`
+                    : `Complete todas as cartelas (${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length})`
+                  }
                 </Button>
               </CardFooter>
             </Card>
@@ -459,12 +557,12 @@ export default function SorteioPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rodadas sorteadas</span>
+                  <span className="text-muted-foreground">Rodadas realizadas</span>
                   <span className="font-medium">{raffle.current_draw_count || 0}</span>
                 </div>
                 {raffle.scheduled_at && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Encerramento</span>
+                    <span className="text-muted-foreground">Data final</span>
                     <span className="font-medium">
                       {format(new Date(raffle.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
@@ -481,26 +579,34 @@ export default function SorteioPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Compra</DialogTitle>
-            <DialogDescription>{raffle.name}</DialogDescription>
+            <DialogDescription>
+              Você está comprando {tickets.length} cartela(s) para o sorteio "{raffle.name}"
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground mb-2">Seus números:</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedNumbers
-                  .sort((a, b) => a - b)
-                  .map((num) => (
-                    <Badge key={num} variant="default" className="font-mono">
+            {tickets.map((ticket, index) => (
+              <div key={ticket.id} className="p-3 bg-muted rounded-lg">
+                <p className="font-medium text-sm mb-2">Cartela {index + 1}</p>
+                <div className="flex flex-wrap gap-1">
+                  {ticket.numbers.sort((a, b) => a - b).map(num => (
+                    <Badge key={num} variant="outline" className="font-mono text-xs">
                       {String(num).padStart(2, '0')}
                     </Badge>
                   ))}
+                </div>
               </div>
-            </div>
+            ))}
 
-            <div className="flex justify-between font-semibold text-lg border-t pt-4">
-              <span>Total</span>
-              <span>R$ {ticketPrice.toFixed(2)}</span>
+            <div className="bg-muted rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
+                <span>R$ {totalPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                <span>Total</span>
+                <span>R$ {totalPrice.toFixed(2)}</span>
+              </div>
             </div>
 
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -522,7 +628,7 @@ export default function SorteioPage() {
               ) : (
                 <>
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  Pagar R$ {ticketPrice.toFixed(2)}
+                  Pagar R$ {totalPrice.toFixed(2)}
                 </>
               )}
             </Button>

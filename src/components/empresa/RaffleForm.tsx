@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, ImagePlus, Trash2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type RaffleStatus = Database['public']['Enums']['raffle_status'];
@@ -25,6 +28,7 @@ const raffleSchema = z.object({
   prize_percent_of_sales: z.coerce.number().min(0).max(100),
   status: z.enum(['draft', 'active', 'paused', 'finished'] as const),
   scheduled_at: z.string().optional(),
+  image_url: z.string().optional().nullable(),
 }).refine(data => data.number_range_end > data.number_range_start, {
   message: 'Fim do range deve ser maior que o início',
   path: ['number_range_end'],
@@ -36,13 +40,17 @@ const raffleSchema = z.object({
 export type RaffleFormData = z.infer<typeof raffleSchema>;
 
 interface RaffleFormProps {
+  companyId: string;
   defaultValues?: Partial<RaffleFormData>;
   onSubmit: (data: RaffleFormData) => void;
   isLoading?: boolean;
   submitLabel?: string;
 }
 
-export function RaffleForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Salvar' }: RaffleFormProps) {
+export function RaffleForm({ companyId, defaultValues, onSubmit, isLoading, submitLabel = 'Salvar' }: RaffleFormProps) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  
   const {
     register,
     handleSubmit,
@@ -62,6 +70,7 @@ export function RaffleForm({ defaultValues, onSubmit, isLoading, submitLabel = '
       fixed_prize_value: 0,
       prize_percent_of_sales: 100,
       status: 'draft',
+      image_url: null,
       ...defaultValues,
     },
   });
@@ -69,7 +78,36 @@ export function RaffleForm({ defaultValues, onSubmit, isLoading, submitLabel = '
   const prizeMode = watch('prize_mode');
   const rangeStart = watch('number_range_start');
   const rangeEnd = watch('number_range_end');
+  const imageUrl = watch('image_url');
   const numbersRange = rangeEnd - rangeStart + 1;
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${companyId}/raffles/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(fileName);
+
+      setValue('image_url', publicUrl);
+      toast({ title: 'Imagem enviada!' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro ao enviar imagem', description: error.message });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -88,6 +126,48 @@ export function RaffleForm({ defaultValues, onSubmit, isLoading, submitLabel = '
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea id="description" {...register('description')} placeholder="Descreva o sorteio..." rows={3} />
+          </div>
+
+          {/* Image Upload */}
+          <div className="space-y-2">
+            <Label>Imagem do Sorteio (Banner)</Label>
+            {imageUrl ? (
+              <div className="relative aspect-video max-w-md rounded-lg overflow-hidden border">
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  className="absolute top-2 right-2"
+                  onClick={() => setValue('image_url', null)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center h-32 max-w-md border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                />
+                {uploading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">Clique para fazer upload</span>
+                  </>
+                )}
+              </label>
+            )}
+            <p className="text-xs text-muted-foreground">A imagem será exibida no card do sorteio na landing page</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
