@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Save } from 'lucide-react';
+import { Save, Loader2, ImagePlus, Trash2 } from 'lucide-react';
+import { BannerManager } from '@/components/empresa/BannerManager';
 
 export default function EmpresaConfiguracoes() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +24,7 @@ export default function EmpresaConfiguracoes() {
     primary_color: '#3B82F6',
     secondary_color: '#1E40AF',
   });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -70,109 +72,172 @@ export default function EmpresaConfiguracoes() {
     updateMutation.mutate(formData);
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !company) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${company.id}/logo/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(fileName);
+
+      setFormData(prev => ({ ...prev, logo_url: publicUrl }));
+      toast({ title: 'Logo enviado!' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro ao enviar logo', description: error.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState fullScreen message="Carregando empresa..." />;
   }
 
   return (
     <EmpresaLayout title="Configurações" description="Configure a identidade visual da empresa">
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Branding */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Identidade Visual</CardTitle>
-              <CardDescription>Logo e cores da empresa</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="logo_url">URL do Logo</Label>
-                <Input
-                  id="logo_url"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                  placeholder="https://exemplo.com/logo.png"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="primary_color">Cor Primária</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="primary_color"
-                    type="color"
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                    className="w-16 h-10 p-1"
-                  />
-                  <Input
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                  />
+      <div className="space-y-6">
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Branding */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Identidade Visual</CardTitle>
+                <CardDescription>Logo e cores da empresa</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Logo da Empresa</Label>
+                  {formData.logo_url ? (
+                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border">
+                      <img
+                        src={formData.logo_url}
+                        alt="Logo"
+                        className="w-full h-full object-contain"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="absolute top-1 right-1"
+                        onClick={() => setFormData(prev => ({ ...prev, logo_url: '' }))}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleLogoUpload}
+                        disabled={uploading}
+                      />
+                      {uploading ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      ) : (
+                        <>
+                          <ImagePlus className="h-6 w-6 text-muted-foreground mb-1" />
+                          <span className="text-xs text-muted-foreground">Upload</span>
+                        </>
+                      )}
+                    </label>
+                  )}
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="secondary_color">Cor Secundária</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="secondary_color"
-                    type="color"
-                    value={formData.secondary_color}
-                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                    className="w-16 h-10 p-1"
-                  />
-                  <Input
-                    value={formData.secondary_color}
-                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="primary_color">Cor Primária</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="primary_color"
+                      type="color"
+                      value={formData.primary_color}
+                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      className="w-16 h-10 p-1"
+                    />
+                    <Input
+                      value={formData.primary_color}
+                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                    />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_color">Cor Secundária</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="secondary_color"
+                      type="color"
+                      value={formData.secondary_color}
+                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      className="w-16 h-10 p-1"
+                    />
+                    <Input
+                      value={formData.secondary_color}
+                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Preview</CardTitle>
-              <CardDescription>Visualize como ficará</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div
-                  className="h-16 rounded-lg flex items-center justify-center text-white font-bold text-xl"
-                  style={{
-                    background: `linear-gradient(135deg, ${formData.primary_color}, ${formData.secondary_color})`,
-                  }}
-                >
-                  {company?.name}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    style={{ backgroundColor: formData.primary_color }}
-                    className="text-white"
+            {/* Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Preview</CardTitle>
+                <CardDescription>Visualize como ficará</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center text-white font-bold text-xl"
+                    style={{
+                      background: `linear-gradient(135deg, ${formData.primary_color}, ${formData.secondary_color})`,
+                    }}
                   >
-                    Botão Primário
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    style={{ borderColor: formData.primary_color, color: formData.primary_color }}
-                  >
-                    Botão Outline
-                  </Button>
+                    {company?.name}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      style={{ backgroundColor: formData.primary_color }}
+                      className="text-white"
+                    >
+                      Botão Primário
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      style={{ borderColor: formData.primary_color, color: formData.primary_color }}
+                    >
+                      Botão Outline
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" disabled={updateMutation.isPending}>
-            <Save className="mr-2 h-4 w-4" />
-            {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-        </div>
-      </form>
+          <div className="mt-6 flex justify-end">
+            <Button type="submit" disabled={updateMutation.isPending}>
+              <Save className="mr-2 h-4 w-4" />
+              {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </div>
+        </form>
+
+        {/* Banner Manager */}
+        {company && <BannerManager companyId={company.id} />}
+      </div>
     </EmpresaLayout>
   );
 }

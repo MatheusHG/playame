@@ -141,8 +141,19 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
 
   return (
     <>
-      <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
-        <CardHeader>
+      <Card className="flex flex-col h-full hover:shadow-lg transition-shadow overflow-hidden">
+        {/* Raffle Image */}
+        {raffle.image_url && (
+          <div className="aspect-video relative overflow-hidden">
+            <img
+              src={raffle.image_url}
+              alt={raffle.name}
+              className="w-full h-full object-cover"
+            />
+            <Badge variant="default" className="absolute top-2 right-2">Ativo</Badge>
+          </div>
+        )}
+        <CardHeader className={raffle.image_url ? 'pt-4' : ''}>
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-xl">{raffle.name}</CardTitle>
@@ -150,7 +161,7 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
                 <CardDescription className="mt-1 line-clamp-2">{raffle.description}</CardDescription>
               )}
             </div>
-            <Badge variant="default">Ativo</Badge>
+            {!raffle.image_url && <Badge variant="default">Ativo</Badge>}
           </div>
         </CardHeader>
 

@@ -119,6 +119,47 @@ export type Database = {
         }
         Relationships: []
       }
+      company_banners: {
+        Row: {
+          company_id: string
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string
+          is_active: boolean
+          redirect_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url: string
+          is_active?: boolean
+          redirect_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          redirect_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_banners_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       draw_batches: {
         Row: {
           created_at: string
@@ -427,6 +468,7 @@ export type Database = {
           finished_at: string | null
           fixed_prize_value: number | null
           id: string
+          image_url: string | null
           name: string
           number_range_end: number
           number_range_start: number
@@ -448,6 +490,7 @@ export type Database = {
           finished_at?: string | null
           fixed_prize_value?: number | null
           id?: string
+          image_url?: string | null
           name: string
           number_range_end?: number
           number_range_start?: number
@@ -469,6 +512,7 @@ export type Database = {
           finished_at?: string | null
           fixed_prize_value?: number | null
           id?: string
+          image_url?: string | null
           name?: string
           number_range_end?: number
           number_range_start?: number

@@ -19,13 +19,19 @@ serve(async (req) => {
   );
 
   try {
-    const { companyId, playerId, raffleId, quantity = 1 } = await req.json();
+    const { companyId, playerId, raffleId, quantity = 1, ticketNumbers } = await req.json();
     const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
       || req.headers.get("x-real-ip") 
       || "unknown";
 
     if (!companyId || !playerId || !raffleId) {
       throw new Error("Missing required parameters");
+    }
+    
+    // Validate ticketNumbers if provided
+    const hasCustomNumbers = ticketNumbers && Array.isArray(ticketNumbers) && ticketNumbers.length > 0;
+    if (hasCustomNumbers && ticketNumbers.length !== quantity) {
+      throw new Error("Number of ticket number sets must match quantity");
     }
 
     // Rate limiting for checkout (10 attempts per 10 minutes per player)
@@ -98,12 +104,24 @@ serve(async (req) => {
     // Create ticket(s)
     const tickets = [];
     for (let i = 0; i < quantity; i++) {
-      // Generate random numbers for the ticket
-      const numbers = generateRandomNumbers(
-        raffle.number_range_start,
-        raffle.number_range_end,
-        raffle.numbers_per_ticket
-      );
+      // Use provided numbers or generate random ones
+      let numbers: number[];
+      if (hasCustomNumbers && ticketNumbers[i]) {
+        numbers = ticketNumbers[i].sort((a: number, b: number) => a - b);
+        // Validate the numbers are within range
+        const validNumbers = numbers.every(
+          (n: number) => n >= raffle.number_range_start && n <= raffle.number_range_end
+        );
+        if (!validNumbers || numbers.length !== raffle.numbers_per_ticket) {
+          throw new Error(`Invalid numbers for ticket ${i + 1}`);
+        }
+      } else {
+        numbers = generateRandomNumbers(
+          raffle.number_range_start,
+          raffle.number_range_end,
+          raffle.numbers_per_ticket
+        );
+      }
 
       // Get eligible prize tiers based on current draw count
       const { data: eligibleTiers } = await supabase
