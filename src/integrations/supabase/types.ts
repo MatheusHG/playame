@@ -491,6 +491,36 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          action: string
+          attempts: number | null
+          blocked_until: string | null
+          first_attempt_at: string | null
+          id: string
+          identifier: string
+          last_attempt_at: string | null
+        }
+        Insert: {
+          action: string
+          attempts?: number | null
+          blocked_until?: string | null
+          first_attempt_at?: string | null
+          id?: string
+          identifier: string
+          last_attempt_at?: string | null
+        }
+        Update: {
+          action?: string
+          attempts?: number | null
+          blocked_until?: string | null
+          first_attempt_at?: string | null
+          id?: string
+          identifier?: string
+          last_attempt_at?: string | null
+        }
+        Relationships: []
+      }
       ticket_numbers: {
         Row: {
           created_at: string
@@ -683,6 +713,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_ticket_ranking: {
+        Args: { p_ticket_id: string }
+        Returns: undefined
+      }
+      check_rate_limit: {
+        Args: {
+          p_action: string
+          p_block_seconds?: number
+          p_identifier: string
+          p_max_attempts?: number
+          p_window_seconds?: number
+        }
+        Returns: boolean
+      }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
@@ -700,6 +745,35 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      log_audit: {
+        Args: {
+          p_action: string
+          p_changes?: Json
+          p_company_id: string
+          p_entity_id: string
+          p_entity_type: string
+          p_ip_address?: unknown
+          p_player_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      log_financial: {
+        Args: {
+          p_amount: number
+          p_company_id: string
+          p_description?: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_type: string
+        }
+        Returns: string
+      }
+      recalculate_raffle_ranking: {
+        Args: { p_raffle_id: string }
+        Returns: undefined
+      }
+      settle_raffle_winners: { Args: { p_raffle_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "SUPER_ADMIN" | "ADMIN_EMPRESA" | "COLABORADOR"
