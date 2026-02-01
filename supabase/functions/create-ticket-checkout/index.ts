@@ -20,9 +20,26 @@ serve(async (req) => {
 
   try {
     const { companyId, playerId, raffleId, quantity = 1 } = await req.json();
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+      || req.headers.get("x-real-ip") 
+      || "unknown";
 
     if (!companyId || !playerId || !raffleId) {
       throw new Error("Missing required parameters");
+    }
+
+    // Rate limiting for checkout (10 attempts per 10 minutes per player)
+    const checkoutIdentifier = `checkout:${playerId}`;
+    const { data: checkoutAllowed } = await supabase.rpc("check_rate_limit", {
+      p_identifier: checkoutIdentifier,
+      p_action: "checkout",
+      p_max_attempts: 10,
+      p_window_seconds: 600,
+      p_block_seconds: 900,
+    });
+
+    if (!checkoutAllowed) {
+      throw new Error("Muitas tentativas de compra. Tente novamente em 15 minutos.");
     }
 
     // Fetch company with Stripe keys

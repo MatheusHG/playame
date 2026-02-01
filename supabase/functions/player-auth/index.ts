@@ -47,6 +47,12 @@ function validateCPF(cpf: string): boolean {
   return true;
 }
 
+function getClientIP(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+    || req.headers.get("x-real-ip") 
+    || "unknown";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -60,6 +66,7 @@ serve(async (req) => {
 
   try {
     const { action, companyId, cpf, password, name, city, phone } = await req.json();
+    const clientIP = getClientIP(req);
 
     if (!companyId) {
       throw new Error("Company ID is required");
@@ -73,6 +80,36 @@ serve(async (req) => {
     const cpfHash = await hashCPF(cleanedCPF);
     const cpfLast4 = cleanedCPF.slice(-4);
 
+    // Rate limiting for login attempts (5 attempts per 5 minutes, block for 15 minutes)
+    if (action === "login") {
+      const rateLimitIdentifier = `${companyId}:${cpfHash.substring(0, 16)}`;
+      const { data: allowed } = await supabase.rpc("check_rate_limit", {
+        p_identifier: rateLimitIdentifier,
+        p_action: "player_login",
+        p_max_attempts: 5,
+        p_window_seconds: 300,
+        p_block_seconds: 900,
+      });
+
+      if (!allowed) {
+        throw new Error("Muitas tentativas de login. Tente novamente em 15 minutos.");
+      }
+    }
+
+    // Rate limiting for CPF lookup (10 attempts per 5 minutes)
+    const cpfLookupIdentifier = `${companyId}:cpf_lookup:${clientIP}`;
+    const { data: cpfLookupAllowed } = await supabase.rpc("check_rate_limit", {
+      p_identifier: cpfLookupIdentifier,
+      p_action: "cpf_lookup",
+      p_max_attempts: 10,
+      p_window_seconds: 300,
+      p_block_seconds: 600,
+    });
+
+    if (!cpfLookupAllowed) {
+      throw new Error("Muitas consultas de CPF. Tente novamente mais tarde.");
+    }
+
     if (action === "register") {
       if (!password || password.length < 6) {
         throw new Error("Senha deve ter pelo menos 6 caracteres");
@@ -80,6 +117,20 @@ serve(async (req) => {
 
       if (!name || name.trim().length < 3) {
         throw new Error("Nome deve ter pelo menos 3 caracteres");
+      }
+
+      // Rate limiting for registration (3 per hour per IP)
+      const registerIdentifier = `register:${clientIP}`;
+      const { data: registerAllowed } = await supabase.rpc("check_rate_limit", {
+        p_identifier: registerIdentifier,
+        p_action: "player_register",
+        p_max_attempts: 3,
+        p_window_seconds: 3600,
+        p_block_seconds: 3600,
+      });
+
+      if (!registerAllowed) {
+        throw new Error("Muitos cadastros deste IP. Tente novamente mais tarde.");
       }
 
       // Check if player already exists
@@ -115,6 +166,17 @@ serve(async (req) => {
         .single();
 
       if (error) throw error;
+
+      // Log audit (without sensitive data)
+      await supabase.rpc("log_audit", {
+        p_company_id: companyId,
+        p_user_id: null,
+        p_player_id: player.id,
+        p_action: "PLAYER_REGISTERED",
+        p_entity_type: "player",
+        p_entity_id: player.id,
+        p_changes: { city: player.city },
+      });
 
       // Generate session token
       const sessionToken = crypto.randomUUID();
@@ -162,8 +224,29 @@ serve(async (req) => {
 
       const passwordHash = await hashPassword(password);
       if (player.password_hash !== passwordHash) {
+        // Log failed attempt (without password)
+        await supabase.rpc("log_audit", {
+          p_company_id: companyId,
+          p_user_id: null,
+          p_player_id: player.id,
+          p_action: "LOGIN_FAILED",
+          p_entity_type: "player",
+          p_entity_id: player.id,
+          p_changes: { reason: "invalid_password" },
+        });
         throw new Error("Senha incorreta");
       }
+
+      // Log successful login
+      await supabase.rpc("log_audit", {
+        p_company_id: companyId,
+        p_user_id: null,
+        p_player_id: player.id,
+        p_action: "PLAYER_LOGIN",
+        p_entity_type: "player",
+        p_entity_id: player.id,
+        p_changes: null,
+      });
 
       // Generate session token
       const sessionToken = crypto.randomUUID();

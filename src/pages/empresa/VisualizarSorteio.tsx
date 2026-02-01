@@ -5,11 +5,14 @@ import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { PrizeTiersEditor } from '@/components/empresa/PrizeTiersEditor';
 import { DrawBatchManager } from '@/components/empresa/DrawBatchManager';
+import { TicketsList } from '@/components/empresa/TicketsList';
+import { RankingTable } from '@/components/empresa/RankingTable';
+import { SettlementDialog } from '@/components/empresa/SettlementDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, DollarSign, Hash, Trophy, Calendar, Play, Pause, StopCircle } from 'lucide-react';
+import { ArrowLeft, Edit, DollarSign, Hash, Trophy, Calendar, Play, Pause } from 'lucide-react';
 import { useRaffle, useRaffleMutations, usePrizeTierMutations } from '@/hooks/useRaffles';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -58,6 +61,7 @@ export default function VisualizarSorteio() {
   const isActive = status === 'active';
   const isPaused = status === 'paused';
   const isDraft = status === 'draft';
+  const isFinished = status === 'finished';
 
   return (
     <EmpresaLayout title={raffle.name} description={raffle.description || 'Detalhes do sorteio'}>
@@ -92,10 +96,11 @@ export default function VisualizarSorteio() {
                 <Play className="mr-2 h-4 w-4" />
                 Reativar
               </Button>
-              <Button variant="destructive" onClick={() => changeStatus.mutate({ id: raffle.id, status: 'finished' })}>
-                <StopCircle className="mr-2 h-4 w-4" />
-                Finalizar
-              </Button>
+              <SettlementDialog 
+                raffleId={raffle.id} 
+                raffleName={raffle.name}
+                isFinished={isFinished}
+              />
             </>
           )}
           <Button variant="outline" asChild>
@@ -191,31 +196,11 @@ export default function VisualizarSorteio() {
         </TabsContent>
 
         <TabsContent value="cartelas">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cartelas Vendidas</CardTitle>
-              <CardDescription>Lista de cartelas compradas para este sorteio</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                Funcionalidade será implementada na Fase 4.
-              </p>
-            </CardContent>
-          </Card>
+          <TicketsList raffleId={raffle.id} />
         </TabsContent>
 
         <TabsContent value="ranking">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ranking</CardTitle>
-              <CardDescription>Posição das cartelas baseada em acertos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                Funcionalidade será implementada na Fase 5.
-              </p>
-            </CardContent>
-          </Card>
+          <RankingTable raffleId={raffle.id} numbersPerTicket={raffle.numbers_per_ticket} />
         </TabsContent>
       </Tabs>
     </EmpresaLayout>
