@@ -1,1 +1,13 @@
 project_id = "ughbqtlxgfybawixlnir"
+
+[functions.player-auth]
+verify_jwt = false
+
+[functions.manage-stripe-keys]
+verify_jwt = true
+
+[functions.create-ticket-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
