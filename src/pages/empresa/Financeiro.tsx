@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
+import { ManualPaymentApproval } from '@/components/empresa/ManualPaymentApproval';
 import { DollarSign, TrendingUp, Receipt, ArrowUpCircle, CircleDollarSign, User } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -162,6 +163,20 @@ export default function EmpresaFinanceiro() {
             ? 'Falhou'
             : 'Reembolsado'}
         </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      render: (p) => (
+        <ManualPaymentApproval 
+          payment={{
+            id: p.id,
+            ticket_id: p.ticket_id,
+            status: p.status,
+            amount: Number(p.amount)
+          }}
+        />
       ),
     },
   ];

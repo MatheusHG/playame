@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import LandingPage from "./pages/public/LandingPage";
 import SorteioPage from "./pages/public/SorteioPage";
 import CompraSucesso from "./pages/public/CompraSucesso";
+import MinhaConta from "./pages/public/MinhaConta";
 
 // Super Admin Pages
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/empresa/:slug" element={<LandingPage />} />
                 <Route path="/empresa/:slug/sorteio/:raffleId" element={<SorteioPage />} />
                 <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
+                <Route path="/empresa/:slug/minha-conta" element={<MinhaConta />} />
 
               {/* Super Admin routes */}
               <Route

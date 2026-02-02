@@ -1,7 +1,11 @@
 import { ReactNode } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { useCompanyBranding, useTenant } from '@/contexts/TenantContext';
+import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { User } from 'lucide-react';
 
 interface ThemedLayoutProps {
   children: ReactNode;
@@ -12,6 +16,8 @@ interface ThemedLayoutProps {
 export function ThemedLayout({ children, showHeader = true, className }: ThemedLayoutProps) {
   const { loading, error } = useTenant();
   const company = useCompanyBranding();
+  const { player, isAuthenticated } = usePlayer();
+  const { slug } = useParams<{ slug: string }>();
 
   if (loading) {
     return <LoadingState fullScreen message="Carregando..." />;
@@ -39,7 +45,7 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
       {showHeader && company && (
         <header className="border-b bg-card">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-3">
+            <Link to={`/empresa/${slug}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               {company.logo_url ? (
                 <img 
                   src={company.logo_url} 
@@ -55,7 +61,17 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
                 </div>
               )}
               <span className="font-semibold text-lg">{company.name}</span>
-            </div>
+            </Link>
+
+            {/* Player Account Link */}
+            {isAuthenticated && player && slug && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/empresa/${slug}/minha-conta`}>
+                  <User className="h-4 w-4 mr-2" />
+                  {player.name.split(' ')[0]}
+                </Link>
+              </Button>
+            )}
           </div>
         </header>
       )}

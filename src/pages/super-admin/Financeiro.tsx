@@ -5,6 +5,7 @@ import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
+import { ManualPaymentApproval } from '@/components/empresa/ManualPaymentApproval';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Building2, Percent, CircleDollarSign, ArrowUpCircle, User } from 'lucide-react';
@@ -173,6 +174,20 @@ export default function SuperAdminFinanceiro() {
       key: 'status',
       header: 'Status',
       render: (item) => <StatusBadge status={item.status} />,
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      render: (item) => (
+        <ManualPaymentApproval 
+          payment={{
+            id: item.id,
+            ticket_id: item.ticket_id,
+            status: item.status,
+            amount: Number(item.amount)
+          }}
+        />
+      ),
     },
   ];
 
