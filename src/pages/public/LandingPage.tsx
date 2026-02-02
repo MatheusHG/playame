@@ -215,14 +215,6 @@ export default function LandingPage() {
                     key={raffle.id}
                     raffle={raffle}
                     companySlug={slug!}
-                    isAuthenticated={isAuthenticated}
-                    onBuyClick={() => {
-                      if (!isAuthenticated) {
-                        openAuth('login');
-                      } else {
-                        setSelectedRaffleId(raffle.id);
-                      }
-                    }}
                   />
                 ))}
               </div>
