@@ -504,6 +504,9 @@ export default function SorteioPage() {
               prizeTiers={raffle.prize_tiers || []}
               prizePool={prizePool}
               currentDrawCount={raffle.current_draw_count || 0}
+              prizeMode={raffle.prize_mode}
+              fixedPrizeValue={raffle.fixed_prize_value}
+              prizePercentOfSales={raffle.prize_percent_of_sales}
             />
 
             {/* Raffle Info */}

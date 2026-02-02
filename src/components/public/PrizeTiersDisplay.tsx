@@ -3,10 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Crown, Medal, Star, Gift, CheckCircle } from 'lucide-react';
+import { Trophy, Crown, Medal, Star, Gift, CheckCircle, TrendingUp, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
 type PrizeTier = Database['public']['Tables']['prize_tiers']['Row'];
+type PrizeMode = Database['public']['Enums']['prize_mode'];
 
 interface WinnerInfo {
   tier_id: string;
@@ -22,6 +24,9 @@ interface PrizeTiersDisplayProps {
   prizeTiers: PrizeTier[];
   prizePool: number;
   currentDrawCount: number;
+  prizeMode?: PrizeMode | null;
+  fixedPrizeValue?: number | null;
+  prizePercentOfSales?: number | null;
 }
 
 function maskName(name: string): string {
@@ -38,7 +43,44 @@ function maskCity(city: string | null): string {
   return city.slice(0, 3) + '***';
 }
 
-export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDrawCount }: PrizeTiersDisplayProps) {
+function getPrizeModeLabel(mode: PrizeMode | null | undefined): string {
+  switch (mode) {
+    case 'FIXED': return 'Valor Fixo';
+    case 'PERCENT_ONLY': return 'Percentual das Vendas';
+    case 'FIXED_PLUS_PERCENT': return 'Fixo + Percentual';
+    default: return 'Não definido';
+  }
+}
+
+function getPrizeModeDescription(
+  mode: PrizeMode | null | undefined,
+  fixedValue: number | null | undefined,
+  percent: number | null | undefined
+): string {
+  const fixed = fixedValue ?? 0;
+  const pct = percent ?? 0;
+  
+  switch (mode) {
+    case 'FIXED':
+      return `Prêmio fixo de R$ ${fixed.toFixed(2)}`;
+    case 'PERCENT_ONLY':
+      return `${pct}% do valor das vendas`;
+    case 'FIXED_PLUS_PERCENT':
+      return `R$ ${fixed.toFixed(2)} + ${pct}% das vendas`;
+    default:
+      return '';
+  }
+}
+
+export function PrizeTiersDisplay({ 
+  raffleId, 
+  prizeTiers, 
+  prizePool, 
+  currentDrawCount,
+  prizeMode,
+  fixedPrizeValue,
+  prizePercentOfSales
+}: PrizeTiersDisplayProps) {
   // Fetch winners for each tier
   const { data: winners = [], isLoading: loadingWinners } = useQuery({
     queryKey: ['raffle-winners', raffleId],
@@ -99,6 +141,8 @@ export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDraw
     return winners.filter(w => w.tier_id === tierId);
   };
 
+  const showGrowthIndicator = prizeMode === 'PERCENT_ONLY' || prizeMode === 'FIXED_PLUS_PERCENT';
+
   if (sortedTiers.length === 0) {
     return (
       <Card>
@@ -122,11 +166,36 @@ export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDraw
           <Trophy className="h-5 w-5 text-primary" />
           Premiação
         </CardTitle>
-        <CardDescription>
-          Pool atual: R$ {prizePool.toFixed(2)}
+        <CardDescription className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-lg text-foreground">
+              R$ {prizePool.toFixed(2)}
+            </span>
+            {showGrowthIndicator && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="gap-1 text-green-600 border-green-300">
+                      <TrendingUp className="h-3 w-3" />
+                      Acumulado
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-sm">O prêmio aumenta a cada cartela vendida!</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          {prizeMode && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3 w-3" />
+              <span>{getPrizeModeDescription(prizeMode, fixedPrizeValue, prizePercentOfSales)}</span>
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {sortedTiers.map((tier, index) => {
           const tierPrize = tier.prize_type === 'money' 
             ? prizePool * (Number(tier.prize_percentage) / 100) 
@@ -152,8 +221,11 @@ export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDraw
                 <div className="flex items-start gap-3">
                   {getTierIcon(index, sortedTiers.length)}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">{tier.hits_required} acertos</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {tier.prize_percentage}%
+                      </Badge>
                       {hasWinner && (
                         <Badge variant="default" className="bg-green-600 text-xs">
                           <CheckCircle className="h-3 w-3 mr-1" />
@@ -163,16 +235,13 @@ export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDraw
                     </div>
                     
                     {tier.prize_type === 'money' ? (
-                      <p className="text-lg font-bold text-primary">
+                      <p className="text-xl font-bold text-primary">
                         R$ {tierPrize.toFixed(2)}
-                        <span className="text-xs font-normal text-muted-foreground ml-1">
-                          ({tier.prize_percentage}% do pool)
-                        </span>
                       </p>
                     ) : (
                       <div className="flex items-center gap-1">
                         <Gift className="h-4 w-4 text-primary" />
-                        <span className="font-medium">Prêmio Físico</span>
+                        <span className="font-medium text-primary">Prêmio Físico</span>
                       </div>
                     )}
 
@@ -204,7 +273,7 @@ export function PrizeTiersDisplay({ raffleId, prizeTiers, prizePool, currentDraw
                   </p>
                   <div className="space-y-1">
                     {tierWinners.map((winner, idx) => (
-                      <div key={idx} className="text-sm flex items-center gap-2">
+                      <div key={idx} className="text-sm flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{winner.player_name_masked}</span>
                         {winner.player_city && (
                           <span className="text-muted-foreground">
