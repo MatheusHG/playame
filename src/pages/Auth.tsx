@@ -33,21 +33,19 @@ export default function Auth() {
   // Role-based redirect after authentication
   useEffect(() => {
     const redirectBasedOnRole = async () => {
-      if (!user || loading) return;
+      // Wait for auth to finish loading
+      if (loading) return;
       
-      // If there's a specific "from" path (except root), respect it
-      if (from && from !== '/') {
+      // No user, don't redirect
+      if (!user) return;
+
+      // If there's a specific "from" path that's a protected route, respect it
+      if (from && from !== '/' && !from.startsWith('/auth')) {
         navigate(from, { replace: true });
         return;
       }
 
-      // Wait for roles to be loaded
-      if (roles.length === 0) {
-        // Roles might still be loading, wait a bit
-        return;
-      }
-
-      // Check if user is SUPER_ADMIN
+      // Check if user is SUPER_ADMIN first (this is computed from roles)
       if (isSuperAdmin) {
         navigate('/super-admin/dashboard', { replace: true });
         return;
@@ -69,7 +67,13 @@ export default function Auth() {
         }
       }
 
-      // Default fallback
+      // If roles are still empty but user exists, might still be loading roles
+      // Don't redirect to home yet, wait for roles
+      if (roles.length === 0) {
+        return;
+      }
+
+      // Default fallback for users without any known role
       navigate('/', { replace: true });
     };
 
