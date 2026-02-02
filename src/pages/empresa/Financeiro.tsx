@@ -9,17 +9,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/shared/DataTable';
-import { DollarSign, TrendingUp, Receipt, ArrowUpCircle, ArrowDownCircle, CircleDollarSign } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
+import { DollarSign, TrendingUp, Receipt, ArrowUpCircle, CircleDollarSign, User } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
 
 type Payment = Database['public']['Tables']['payments']['Row'];
-type FinancialLog = Database['public']['Tables']['financial_logs']['Row'];
+type FinancialLog = Database['public']['Tables']['financial_logs']['Row'] & {
+  user_email?: string;
+};
 
 export default function EmpresaFinanceiro() {
   const { slug } = useParams<{ slug: string }>();
   const { setCompanySlug, company, loading } = useTenant();
+  
+  // Date filters
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (slug) {
@@ -27,37 +34,67 @@ export default function EmpresaFinanceiro() {
     }
   }, [slug, setCompanySlug]);
 
-  // Fetch payments
+  // Fetch payments with date filter
   const { data: payments = [], isLoading: loadingPayments } = useQuery({
-    queryKey: ['company-payments', company?.id],
+    queryKey: ['company-payments', company?.id, startDate, endDate],
     enabled: !!company?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('payments')
         .select('*')
         .eq('company_id', company!.id)
         .order('created_at', { ascending: false })
         .limit(100);
 
+      if (startDate) {
+        query = query.gte('created_at', startOfDay(startDate).toISOString());
+      }
+      if (endDate) {
+        query = query.lte('created_at', endOfDay(endDate).toISOString());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Payment[];
     },
   });
 
-  // Fetch financial logs
+  // Fetch financial logs with date filter and user info
   const { data: financialLogs = [], isLoading: loadingLogs } = useQuery({
-    queryKey: ['company-financial-logs', company?.id],
+    queryKey: ['company-financial-logs', company?.id, startDate, endDate],
     enabled: !!company?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('financial_logs')
         .select('*')
         .eq('company_id', company!.id)
         .order('created_at', { ascending: false })
         .limit(100);
 
+      if (startDate) {
+        query = query.gte('created_at', startOfDay(startDate).toISOString());
+      }
+      if (endDate) {
+        query = query.lte('created_at', endOfDay(endDate).toISOString());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as FinancialLog[];
+
+      // Fetch user emails for logs that have user_id
+      const userIds = [...new Set((data || []).map(log => log.user_id).filter(Boolean))];
+      let usersMap: Record<string, string> = {};
+      
+      if (userIds.length > 0) {
+        // We need to use auth.users but we can't directly query it
+        // Instead, we'll show user_id abbreviated or fetch from audit_logs
+        // For now, just show user_id if available
+      }
+
+      return (data || []).map(log => ({
+        ...log,
+        user_email: log.user_id ? `Usuário ${log.user_id.slice(0, 8)}...` : undefined,
+      })) as FinancialLog[];
     },
   });
 
@@ -65,11 +102,16 @@ export default function EmpresaFinanceiro() {
     return <LoadingState fullScreen message="Carregando empresa..." />;
   }
 
-  // Calculate stats
+  // Calculate stats (filtered data)
   const succeededPayments = payments.filter((p) => p.status === 'succeeded');
   const totalSales = succeededPayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalFees = succeededPayments.reduce((sum, p) => sum + Number(p.admin_fee || 0), 0);
   const netRevenue = succeededPayments.reduce((sum, p) => sum + Number(p.net_amount), 0);
+
+  const handleClearFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   const paymentColumns: Column<Payment>[] = [
     {
@@ -162,6 +204,24 @@ export default function EmpresaFinanceiro() {
       ),
     },
     {
+      key: 'user_id',
+      header: 'Usuário',
+      render: (log) => (
+        <div className="flex items-center gap-1.5">
+          {log.user_id ? (
+            <>
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground font-mono">
+                {log.user_id.slice(0, 8)}...
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">Sistema</span>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'description',
       header: 'Descrição',
       render: (log) => <span className="text-sm">{log.description || '-'}</span>,
@@ -170,6 +230,17 @@ export default function EmpresaFinanceiro() {
 
   return (
     <EmpresaLayout title="Financeiro" description="Relatórios financeiros da empresa">
+      {/* Date Filter */}
+      <div className="mb-6">
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onClear={handleClearFilters}
+        />
+      </div>
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
