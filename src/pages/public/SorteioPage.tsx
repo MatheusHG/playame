@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Trophy, Clock, DollarSign, Hash, ShoppingCart, Loader2, Check, Shuffle, Ticket, Timer, AlertCircle, Plus, Minus, X } from 'lucide-react';
+import { ArrowLeft, Trophy, Clock, DollarSign, Hash, ShoppingCart, Loader2, Check, Shuffle, Ticket, Timer, AlertCircle, Plus, Minus, X, Lock } from 'lucide-react';
 import { formatDistanceToNow, differenceInSeconds, differenceInDays, differenceInHours, differenceInMinutes, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
@@ -40,7 +40,7 @@ export default function SorteioPage() {
   const [activeTicketId, setActiveTicketId] = useState(1);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  
 
   useEffect(() => {
     if (slug) {
@@ -82,35 +82,44 @@ export default function SorteioPage() {
     },
   });
 
-  // Update time remaining countdown
+  // Check if raffle is open based on scheduled_at (start date)
+  const [countdown, setCountdown] = useState<{ text: string; isOpen: boolean }>({ text: '', isOpen: true });
+
   useEffect(() => {
     if (!raffle?.scheduled_at) {
-      setTimeRemaining('');
+      setCountdown({ text: '', isOpen: true });
       return;
     }
 
     const updateTime = () => {
       const now = new Date();
-      const endDate = new Date(raffle.scheduled_at!);
-      const diff = differenceInSeconds(endDate, now);
+      const startDate = new Date(raffle.scheduled_at!);
+      const diff = differenceInSeconds(startDate, now);
 
+      // If scheduled date has passed, raffle is open
       if (diff <= 0) {
-        setTimeRemaining('Encerrado');
+        setCountdown({ text: '', isOpen: true });
         return;
       }
 
-      const days = differenceInDays(endDate, now);
-      const hours = differenceInHours(endDate, now) % 24;
-      const minutes = differenceInMinutes(endDate, now) % 60;
+      // Raffle not yet open - show countdown to opening
+      const days = differenceInDays(startDate, now);
+      const hours = differenceInHours(startDate, now) % 24;
+      const minutes = differenceInMinutes(startDate, now) % 60;
       const seconds = diff % 60;
 
+      let timeText = '';
       if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+        timeText = `${days}d ${hours}h ${minutes}m`;
       } else if (hours > 0) {
-        setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+        timeText = `${hours}h ${minutes}m ${seconds}s`;
+      } else if (minutes > 0) {
+        timeText = `${minutes}m ${seconds}s`;
       } else {
-        setTimeRemaining(`${minutes}m ${seconds}s`);
+        timeText = `${seconds}s`;
       }
+
+      setCountdown({ text: timeText, isOpen: false });
     };
 
     updateTime();
@@ -312,12 +321,12 @@ export default function SorteioPage() {
               </div>
             </div>
 
-            {timeRemaining && (
-              <div className="bg-white/20 rounded-lg px-4 py-2 flex items-center gap-2">
+            {!countdown.isOpen && countdown.text && (
+              <div className="bg-amber-500/80 rounded-lg px-4 py-2 flex items-center gap-2">
                 <Timer className="h-5 w-5" />
                 <div>
-                  <p className="font-bold">{timeRemaining}</p>
-                  <p className="text-xs text-white/80">para encerrar</p>
+                  <p className="font-bold">{countdown.text}</p>
+                  <p className="text-xs text-white/80">para abrir</p>
                 </div>
               </div>
             )}
@@ -449,6 +458,22 @@ export default function SorteioPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex-col gap-4 border-t pt-6">
+                {/* Countdown Warning if not open */}
+                {!countdown.isOpen && countdown.text && (
+                  <div className="w-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Lock className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-800 dark:text-amber-200">Sorteio abre em</span>
+                    </div>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 font-mono">
+                      {countdown.text}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      Você pode visualizar as informações, mas as compras estarão disponíveis após a abertura.
+                    </p>
+                  </div>
+                )}
+
                 {/* Summary */}
                 <div className="w-full bg-muted rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
@@ -461,24 +486,31 @@ export default function SorteioPage() {
                   </div>
                 </div>
 
-                <Button
-                  size="lg"
-                  className="w-full"
-                  disabled={!allTicketsComplete}
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      openAuth('login');
-                    } else {
-                      setPurchaseDialogOpen(true);
+                {countdown.isOpen ? (
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    disabled={!allTicketsComplete}
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        openAuth('login');
+                      } else {
+                        setPurchaseDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <ShoppingCart className="mr-2 h-5 w-5" />
+                    {allTicketsComplete 
+                      ? `Comprar ${tickets.length} Cartela(s) - R$ ${totalPrice.toFixed(2)}`
+                      : `Complete todas as cartelas (${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length})`
                     }
-                  }}
-                >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  {allTicketsComplete 
-                    ? `Comprar ${tickets.length} Cartela(s) - R$ ${totalPrice.toFixed(2)}`
-                    : `Complete todas as cartelas (${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length})`
-                  }
-                </Button>
+                  </Button>
+                ) : (
+                  <Button size="lg" className="w-full" disabled variant="secondary">
+                    <Lock className="mr-2 h-5 w-5" />
+                    Aguardando Abertura
+                  </Button>
+                )}
               </CardFooter>
             </Card>
 

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DollarSign, Hash, Trophy, Clock, ShoppingCart, Loader2, Check, Timer, Eye } from 'lucide-react';
+import { DollarSign, Hash, Trophy, Clock, ShoppingCart, Loader2, Check, Timer, Eye, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,7 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
   const [buyDialogOpen, setBuyDialogOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [countdown, setCountdown] = useState<{ text: string; isOpen: boolean }>({ text: '', isOpen: true });
 
   const ticketPrice = Number(raffle.ticket_price);
   const totalPrice = ticketPrice * quantity;
@@ -67,42 +67,58 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
 
   const prizePool = calculatePrizePool();
 
-  // Update time remaining countdown
+  // Update countdown - scheduled_at is the START date
   useEffect(() => {
     if (!raffle.scheduled_at) {
-      setTimeRemaining('');
+      setCountdown({ text: '', isOpen: true });
       return;
     }
 
     const updateTime = () => {
       const now = new Date();
-      const endDate = new Date(raffle.scheduled_at!);
-      const diff = differenceInSeconds(endDate, now);
+      const startDate = new Date(raffle.scheduled_at!);
+      const diff = differenceInSeconds(startDate, now);
 
+      // If scheduled date has passed, raffle is open
       if (diff <= 0) {
-        setTimeRemaining('Encerrado');
+        setCountdown({ text: '', isOpen: true });
         return;
       }
 
-      const days = differenceInDays(endDate, now);
-      const hours = differenceInHours(endDate, now) % 24;
-      const minutes = differenceInMinutes(endDate, now) % 60;
+      // Raffle not yet open - show countdown to opening
+      const days = differenceInDays(startDate, now);
+      const hours = differenceInHours(startDate, now) % 24;
+      const minutes = differenceInMinutes(startDate, now) % 60;
+      const seconds = diff % 60;
 
+      let timeText = '';
       if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h`);
+        timeText = `${days}d ${hours}h ${minutes}m`;
       } else if (hours > 0) {
-        setTimeRemaining(`${hours}h ${minutes}m`);
+        timeText = `${hours}h ${minutes}m ${seconds}s`;
+      } else if (minutes > 0) {
+        timeText = `${minutes}m ${seconds}s`;
       } else {
-        setTimeRemaining(`${minutes}m`);
+        timeText = `${seconds}s`;
       }
+
+      setCountdown({ text: timeText, isOpen: false });
     };
 
     updateTime();
-    const interval = setInterval(updateTime, 60000); // Update every minute
+    const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, [raffle.scheduled_at]);
 
   const handleBuyClick = () => {
+    if (!countdown.isOpen) {
+      toast({
+        title: 'Sorteio ainda não aberto',
+        description: 'Aguarde a data de início para comprar cartelas.',
+      });
+      return;
+    }
+    
     if (!isAuthenticated) {
       onBuyClick();
     } else {
@@ -141,16 +157,23 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
 
   return (
     <>
-      <Card className="flex flex-col h-full hover:shadow-lg transition-shadow overflow-hidden">
+      <Card className={`flex flex-col h-full transition-shadow overflow-hidden ${countdown.isOpen ? 'hover:shadow-lg' : 'opacity-90'}`}>
         {/* Raffle Image */}
         {raffle.image_url && (
           <div className="aspect-video relative overflow-hidden">
             <img
               src={raffle.image_url}
               alt={raffle.name}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${!countdown.isOpen ? 'grayscale' : ''}`}
             />
-            <Badge variant="default" className="absolute top-2 right-2">Ativo</Badge>
+            {countdown.isOpen ? (
+              <Badge variant="default" className="absolute top-2 right-2">Ativo</Badge>
+            ) : (
+              <Badge variant="secondary" className="absolute top-2 right-2">
+                <Lock className="h-3 w-3 mr-1" />
+                Em breve
+              </Badge>
+            )}
           </div>
         )}
         <CardHeader className={raffle.image_url ? 'pt-4' : ''}>
@@ -161,11 +184,33 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
                 <CardDescription className="mt-1 line-clamp-2">{raffle.description}</CardDescription>
               )}
             </div>
-            {!raffle.image_url && <Badge variant="default">Ativo</Badge>}
+            {!raffle.image_url && (
+              countdown.isOpen ? (
+                <Badge variant="default">Ativo</Badge>
+              ) : (
+                <Badge variant="secondary">
+                  <Lock className="h-3 w-3 mr-1" />
+                  Em breve
+                </Badge>
+              )
+            )}
           </div>
         </CardHeader>
 
         <CardContent className="flex-1 space-y-4">
+          {/* Countdown to Opening */}
+          {!countdown.isOpen && countdown.text && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Lock className="h-5 w-5 text-amber-600" />
+                <span className="font-medium text-amber-800 dark:text-amber-200">Abre em</span>
+              </div>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 font-mono">
+                {countdown.text}
+              </p>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2 text-sm">
@@ -183,15 +228,6 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
               </div>
             </div>
           </div>
-
-          {/* Time Remaining */}
-          {timeRemaining && (
-            <div className="flex items-center gap-2 text-sm bg-accent/50 rounded-lg px-3 py-2">
-              <Timer className="h-4 w-4 text-primary" />
-              <span className="font-medium">{timeRemaining}</span>
-              <span className="text-muted-foreground">restante</span>
-            </div>
-          )}
 
           {/* Prize Tiers - Show real values */}
           {prizeTiers.length > 0 && (
@@ -240,16 +276,33 @@ export function RafflePublicCard({ raffle, companySlug, isAuthenticated, onBuyCl
         </CardContent>
 
         <CardFooter className="flex flex-col gap-2">
-          <Button className="w-full" size="lg" onClick={handleBuyClick}>
-            <ShoppingCart className="mr-2 h-5 w-5" />
-            Comprar Cartela
-          </Button>
-          <Button variant="outline" className="w-full" asChild>
-            <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
-              <Eye className="mr-2 h-4 w-4" />
-              Ver Detalhes
-            </Link>
-          </Button>
+          {countdown.isOpen ? (
+            <>
+              <Button className="w-full" size="lg" onClick={handleBuyClick}>
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Comprar Cartela
+              </Button>
+              <Button variant="outline" className="w-full" asChild>
+                <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver Detalhes
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button className="w-full" size="lg" disabled variant="secondary">
+                <Lock className="mr-2 h-5 w-5" />
+                Aguardando Abertura
+              </Button>
+              <Button variant="outline" className="w-full" asChild>
+                <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Prévia do Sorteio
+                </Link>
+              </Button>
+            </>
+          )}
         </CardFooter>
       </Card>
 
