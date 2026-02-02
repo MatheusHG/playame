@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -22,18 +23,58 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   
-  const { signIn, signUp, user, loading } = useAuth();
+  const { signIn, signUp, user, loading, isSuperAdmin, roles } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
+  // Role-based redirect after authentication
   useEffect(() => {
-    if (user && !loading) {
-      navigate(from, { replace: true });
-    }
-  }, [user, loading, navigate, from]);
+    const redirectBasedOnRole = async () => {
+      if (!user || loading) return;
+      
+      // If there's a specific "from" path (except root), respect it
+      if (from && from !== '/') {
+        navigate(from, { replace: true });
+        return;
+      }
+
+      // Wait for roles to be loaded
+      if (roles.length === 0) {
+        // Roles might still be loading, wait a bit
+        return;
+      }
+
+      // Check if user is SUPER_ADMIN
+      if (isSuperAdmin) {
+        navigate('/super-admin/dashboard', { replace: true });
+        return;
+      }
+
+      // Check if user has a company role (ADMIN_EMPRESA or COLABORADOR)
+      const companyRole = roles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
+      if (companyRole && companyRole.company_id) {
+        // Get company slug
+        const { data: company } = await supabase
+          .from('companies')
+          .select('slug')
+          .eq('id', companyRole.company_id)
+          .single();
+        
+        if (company?.slug) {
+          navigate(`/empresa/${company.slug}/dashboard`, { replace: true });
+          return;
+        }
+      }
+
+      // Default fallback
+      navigate('/', { replace: true });
+    };
+
+    redirectBasedOnRole();
+  }, [user, loading, roles, isSuperAdmin, navigate, from]);
 
   const validateForm = (): boolean => {
     const result = authSchema.safeParse({ email, password });
