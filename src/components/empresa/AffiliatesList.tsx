@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ import {
   Percent,
   Phone,
   Mail,
+  Eye,
 } from 'lucide-react';
 
 interface AffiliatesListProps {
@@ -35,6 +37,7 @@ interface AffiliatesListProps {
 }
 
 export function AffiliatesList({ companyId }: AffiliatesListProps) {
+  const { slug } = useParams<{ slug: string }>();
   const {
     managers,
     getCambistas,
@@ -183,6 +186,12 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to={`/empresa/${slug}/afiliados/${manager.id}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver Detalhes
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenNewCambista(manager.id)}>
                           <UserPlus className="h-4 w-4 mr-2" />
                           Adicionar Cambista
@@ -264,6 +273,12 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link to={`/empresa/${slug}/afiliados/${cambista.id}`}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Ver Detalhes
+                                    </Link>
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleEdit(cambista)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
