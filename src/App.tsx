@@ -47,6 +47,8 @@ import AffiliateNovaVenda from "./pages/afiliado/NovaVenda";
 import AffiliateVendas from "./pages/afiliado/Vendas";
 import AffiliateComissoes from "./pages/afiliado/Comissoes";
 import AffiliateEquipe from "./pages/afiliado/Equipe";
+import AffiliateEsqueciSenha from "./pages/afiliado/EsqueciSenha";
+import AffiliateRedefinirSenha from "./pages/afiliado/RedefinirSenha";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,8 @@ const App = () => (
 
                   {/* Affiliate Portal routes */}
                   <Route path="/afiliado/:slug/login" element={<AffiliateLogin />} />
+                  <Route path="/afiliado/:slug/esqueci-senha" element={<AffiliateEsqueciSenha />} />
+                  <Route path="/afiliado/:slug/redefinir-senha" element={<AffiliateRedefinirSenha />} />
                   <Route path="/afiliado/:slug/dashboard" element={<AffiliateDashboard />} />
                   <Route path="/afiliado/:slug/meu-link" element={<AffiliateMeuLink />} />
                   <Route path="/afiliado/:slug/nova-venda" element={<AffiliateNovaVenda />} />
