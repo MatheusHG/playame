@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Network,
 } from 'lucide-react';
 import { useState } from 'react';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -44,6 +45,7 @@ export function EmpresaLayout({ children, title, description }: EmpresaLayoutPro
     { name: 'Dashboard', href: `/empresa/${slug}/dashboard`, icon: LayoutDashboard, show: true },
     { name: 'Sorteios', href: `/empresa/${slug}/sorteios`, icon: Trophy, show: true },
     { name: 'Jogadores', href: `/empresa/${slug}/jogadores`, icon: Users, show: true },
+    { name: 'Afiliados', href: `/empresa/${slug}/afiliados`, icon: Network, show: isAdmin },
     { name: 'Financeiro', href: `/empresa/${slug}/financeiro`, icon: DollarSign, show: isAdmin },
     { name: 'Configurações', href: `/empresa/${slug}/configuracoes`, icon: Settings, show: isAdmin },
   ].filter(item => item.show);

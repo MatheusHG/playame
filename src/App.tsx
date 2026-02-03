@@ -24,6 +24,7 @@ import SuperAdminEmpresaConfig from "./pages/super-admin/EmpresaConfig";
 import SuperAdminUsuarios from "./pages/super-admin/Usuarios";
 import SuperAdminFinanceiro from "./pages/super-admin/Financeiro";
 import SuperAdminAuditoria from "./pages/super-admin/Auditoria";
+import SuperAdminAfiliados from "./pages/super-admin/Afiliados";
 
 // Company Admin Pages
 import EmpresaDashboard from "./pages/empresa/Dashboard";
@@ -32,6 +33,7 @@ import NovoSorteio from "./pages/empresa/NovoSorteio";
 import EditarSorteio from "./pages/empresa/EditarSorteio";
 import VisualizarSorteio from "./pages/empresa/VisualizarSorteio";
 import EmpresaJogadores from "./pages/empresa/Jogadores";
+import EmpresaAfiliados from "./pages/empresa/Afiliados";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
 
@@ -99,6 +101,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/super-admin/afiliados"
+                element={
+                  <ProtectedRoute requiredRole="SUPER_ADMIN">
+                    <SuperAdminAfiliados />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/super-admin/auditoria"
                 element={
                   <ProtectedRoute requiredRole="SUPER_ADMIN">
@@ -154,6 +164,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="COLABORADOR">
                     <EmpresaJogadores />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/afiliados"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <EmpresaAfiliados />
                   </ProtectedRoute>
                 }
               />

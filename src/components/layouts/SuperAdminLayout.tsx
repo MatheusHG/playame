@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   X,
+  Network,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Dashboard', href: '/super-admin/dashboard', icon: LayoutDashboard },
   { name: 'Empresas', href: '/super-admin/empresas', icon: Building2 },
   { name: 'Usuários', href: '/super-admin/usuarios', icon: Users },
+  { name: 'Afiliados', href: '/super-admin/afiliados', icon: Network },
   { name: 'Financeiro', href: '/super-admin/financeiro', icon: DollarSign },
   { name: 'Auditoria', href: '/super-admin/auditoria', icon: FileText },
 ];

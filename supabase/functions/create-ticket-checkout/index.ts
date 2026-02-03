@@ -7,6 +7,68 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface CommissionCalculation {
+  saleAmount: number;
+  superAdminPercent: number;
+  superAdminAmount: number;
+  companyNetAmount: number;
+  managerId?: string;
+  managerPercent?: number;
+  managerGrossAmount?: number;
+  cambistaId?: string;
+  cambistaPercentOfManager?: number;
+  cambistaAmount?: number;
+  managerNetAmount?: number;
+  ratesSnapshot: Record<string, unknown>;
+}
+
+function calculateCommissions(
+  saleAmount: number,
+  superAdminPercent: number,
+  manager?: { id: string; name: string; commission_percent: number },
+  cambista?: { id: string; name: string; commission_percent: number }
+): CommissionCalculation {
+  // Super-Admin taxa (sempre primeiro)
+  const superAdminAmount = saleAmount * (superAdminPercent / 100);
+  let companyNetAmount = saleAmount - superAdminAmount;
+
+  const result: CommissionCalculation = {
+    saleAmount,
+    superAdminPercent,
+    superAdminAmount: Math.round(superAdminAmount * 100) / 100,
+    companyNetAmount,
+    ratesSnapshot: {
+      super_admin_percent: superAdminPercent,
+    },
+  };
+
+  // Gerente taxa (se existir)
+  if (manager && manager.commission_percent > 0) {
+    const managerGrossAmount = saleAmount * (manager.commission_percent / 100);
+    companyNetAmount -= managerGrossAmount;
+    result.managerId = manager.id;
+    result.managerPercent = manager.commission_percent;
+    result.managerGrossAmount = Math.round(managerGrossAmount * 100) / 100;
+    result.managerNetAmount = result.managerGrossAmount;
+    result.ratesSnapshot.manager_percent = manager.commission_percent;
+    result.ratesSnapshot.manager_name = manager.name;
+
+    // Cambista taxa (se existir, baseado no valor do gerente)
+    if (cambista && cambista.commission_percent > 0) {
+      const cambistaAmount = managerGrossAmount * (cambista.commission_percent / 100);
+      result.cambistaId = cambista.id;
+      result.cambistaPercentOfManager = cambista.commission_percent;
+      result.cambistaAmount = Math.round(cambistaAmount * 100) / 100;
+      result.managerNetAmount = Math.round((managerGrossAmount - cambistaAmount) * 100) / 100;
+      result.ratesSnapshot.cambista_percent_of_manager = cambista.commission_percent;
+      result.ratesSnapshot.cambista_name = cambista.name;
+    }
+  }
+
+  result.companyNetAmount = Math.round(companyNetAmount * 100) / 100;
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,10 +81,7 @@ serve(async (req) => {
   );
 
   try {
-    const { companyId, playerId, raffleId, quantity = 1, ticketNumbers } = await req.json();
-    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
-      || req.headers.get("x-real-ip") 
-      || "unknown";
+    const { companyId, playerId, raffleId, quantity = 1, ticketNumbers, affiliateId } = await req.json();
 
     if (!companyId || !playerId || !raffleId) {
       throw new Error("Missing required parameters");
@@ -95,11 +154,65 @@ serve(async (req) => {
       throw new Error("Jogador não encontrado");
     }
 
-    // Calculate amounts
+    // Fetch Super-Admin fee
+    const { data: platformSettings } = await supabase
+      .from("platform_settings")
+      .select("*")
+      .eq("key", "super_admin_fee_percent")
+      .single();
+
+    const superAdminFeePercent = platformSettings?.value?.value ?? 10;
+
+    // Fetch affiliate chain if provided
+    let manager: { id: string; name: string; commission_percent: number } | undefined;
+    let cambista: { id: string; name: string; commission_percent: number } | undefined;
+
+    if (affiliateId) {
+      const { data: affiliate } = await supabase
+        .from("affiliates")
+        .select("*")
+        .eq("id", affiliateId)
+        .eq("company_id", companyId)
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .single();
+
+      if (affiliate) {
+        if (affiliate.type === "cambista" && affiliate.parent_affiliate_id) {
+          // Fetch parent manager
+          const { data: parentManager } = await supabase
+            .from("affiliates")
+            .select("*")
+            .eq("id", affiliate.parent_affiliate_id)
+            .eq("is_active", true)
+            .single();
+
+          if (parentManager) {
+            manager = {
+              id: parentManager.id,
+              name: parentManager.name,
+              commission_percent: Number(parentManager.commission_percent),
+            };
+            cambista = {
+              id: affiliate.id,
+              name: affiliate.name,
+              commission_percent: Number(affiliate.commission_percent),
+            };
+          }
+        } else if (affiliate.type === "manager") {
+          manager = {
+            id: affiliate.id,
+            name: affiliate.name,
+            commission_percent: Number(affiliate.commission_percent),
+          };
+        }
+      }
+    }
+
+    // Calculate amounts with commissions
     const ticketPrice = Number(raffle.ticket_price);
     const totalAmount = ticketPrice * quantity;
-    const adminFee = totalAmount * (Number(company.admin_fee_percentage) / 100);
-    const netAmount = totalAmount - adminFee;
+    const commissionCalc = calculateCommissions(totalAmount, superAdminFeePercent, manager, cambista);
 
     // Create ticket(s)
     const tickets = [];
@@ -137,6 +250,7 @@ serve(async (req) => {
           player_id: playerId,
           company_id: companyId,
           status: "pending_payment",
+          affiliate_id: affiliateId || null,
           eligible_prize_tiers: eligibleTiers?.map(t => t.id) || [],
           snapshot_data: {
             raffle_name: raffle.name,
@@ -163,7 +277,7 @@ serve(async (req) => {
       tickets.push(ticket);
     }
 
-    // Create payment record
+    // Create payment record (using old admin_fee for backward compatibility)
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .insert({
@@ -172,14 +286,40 @@ serve(async (req) => {
         player_id: playerId,
         raffle_id: raffleId,
         amount: totalAmount,
-        admin_fee: adminFee,
-        net_amount: netAmount,
+        admin_fee: commissionCalc.superAdminAmount,
+        net_amount: commissionCalc.companyNetAmount,
         status: "pending",
       })
       .select()
       .single();
 
     if (paymentError) throw paymentError;
+
+    // Create affiliate_commissions record for detailed split tracking
+    const { error: commissionError } = await supabase
+      .from("affiliate_commissions")
+      .insert({
+        payment_id: payment.id,
+        ticket_id: tickets[0].id,
+        company_id: companyId,
+        raffle_id: raffleId,
+        sale_amount: commissionCalc.saleAmount,
+        super_admin_percent: commissionCalc.superAdminPercent,
+        super_admin_amount: commissionCalc.superAdminAmount,
+        company_net_amount: commissionCalc.companyNetAmount,
+        manager_id: commissionCalc.managerId || null,
+        manager_percent: commissionCalc.managerPercent || null,
+        manager_gross_amount: commissionCalc.managerGrossAmount || null,
+        cambista_id: commissionCalc.cambistaId || null,
+        cambista_percent_of_manager: commissionCalc.cambistaPercentOfManager || null,
+        cambista_amount: commissionCalc.cambistaAmount || null,
+        manager_net_amount: commissionCalc.managerNetAmount || null,
+        rates_snapshot: commissionCalc.ratesSnapshot,
+      });
+
+    if (commissionError) {
+      console.error("Error creating commission record:", commissionError);
+    }
 
     // Create Stripe checkout session
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
@@ -207,6 +347,7 @@ serve(async (req) => {
         player_id: playerId,
         raffle_id: raffleId,
         ticket_ids: tickets.map(t => t.id).join(","),
+        affiliate_id: affiliateId || "",
       },
     });
 
