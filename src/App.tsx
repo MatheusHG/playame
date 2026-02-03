@@ -43,6 +43,10 @@ import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
 import AffiliateLogin from "./pages/afiliado/Login";
 import AffiliateDashboard from "./pages/afiliado/Dashboard";
 import AffiliateMeuLink from "./pages/afiliado/MeuLink";
+import AffiliateNovaVenda from "./pages/afiliado/NovaVenda";
+import AffiliateVendas from "./pages/afiliado/Vendas";
+import AffiliateComissoes from "./pages/afiliado/Comissoes";
+import AffiliateEquipe from "./pages/afiliado/Equipe";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +75,10 @@ const App = () => (
                   <Route path="/afiliado/:slug/login" element={<AffiliateLogin />} />
                   <Route path="/afiliado/:slug/dashboard" element={<AffiliateDashboard />} />
                   <Route path="/afiliado/:slug/meu-link" element={<AffiliateMeuLink />} />
+                  <Route path="/afiliado/:slug/nova-venda" element={<AffiliateNovaVenda />} />
+                  <Route path="/afiliado/:slug/vendas" element={<AffiliateVendas />} />
+                  <Route path="/afiliado/:slug/comissoes" element={<AffiliateComissoes />} />
+                  <Route path="/afiliado/:slug/equipe" element={<AffiliateEquipe />} />
                   <Route path="/afiliado/:slug" element={<Navigate to="dashboard" replace />} />
 
               {/* Super Admin routes */}
