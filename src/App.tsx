@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { PlayerProvider } from "@/contexts/PlayerContext";
+import { AffiliateProvider } from "@/contexts/AffiliateContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
@@ -38,6 +39,11 @@ import AfiliadoDetalhe from "./pages/empresa/AfiliadoDetalhe";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
 
+// Affiliate Portal Pages
+import AffiliateLogin from "./pages/afiliado/Login";
+import AffiliateDashboard from "./pages/afiliado/Dashboard";
+import AffiliateMeuLink from "./pages/afiliado/MeuLink";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -45,20 +51,27 @@ const App = () => (
     <AuthProvider>
       <TenantProvider>
         <PlayerProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                
-                {/* Public Company Landing Page */}
-                <Route path="/empresa/:slug" element={<LandingPage />} />
-                <Route path="/empresa/:slug/sorteio/:raffleId" element={<SorteioPage />} />
-                <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
-                <Route path="/empresa/:slug/minha-conta" element={<MinhaConta />} />
+          <AffiliateProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Public Company Landing Page */}
+                  <Route path="/empresa/:slug" element={<LandingPage />} />
+                  <Route path="/empresa/:slug/sorteio/:raffleId" element={<SorteioPage />} />
+                  <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
+                  <Route path="/empresa/:slug/minha-conta" element={<MinhaConta />} />
+
+                  {/* Affiliate Portal routes */}
+                  <Route path="/afiliado/:slug/login" element={<AffiliateLogin />} />
+                  <Route path="/afiliado/:slug/dashboard" element={<AffiliateDashboard />} />
+                  <Route path="/afiliado/:slug/meu-link" element={<AffiliateMeuLink />} />
+                  <Route path="/afiliado/:slug" element={<Navigate to="dashboard" replace />} />
 
               {/* Super Admin routes */}
               <Route
@@ -200,11 +213,12 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AffiliateProvider>
       </PlayerProvider>
     </TenantProvider>
   </AuthProvider>

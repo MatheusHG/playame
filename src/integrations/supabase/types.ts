@@ -130,8 +130,13 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          is_sales_paused: boolean
+          link_code: string
           name: string
           parent_affiliate_id: string | null
+          paused_at: string | null
+          paused_by: string | null
+          permission_profile_id: string | null
           phone: string | null
           type: Database["public"]["Enums"]["affiliate_type"]
           updated_at: string
@@ -146,8 +151,13 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          is_sales_paused?: boolean
+          link_code: string
           name: string
           parent_affiliate_id?: string | null
+          paused_at?: string | null
+          paused_by?: string | null
+          permission_profile_id?: string | null
           phone?: string | null
           type: Database["public"]["Enums"]["affiliate_type"]
           updated_at?: string
@@ -162,8 +172,13 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          is_sales_paused?: boolean
+          link_code?: string
           name?: string
           parent_affiliate_id?: string | null
+          paused_at?: string | null
+          paused_by?: string | null
+          permission_profile_id?: string | null
           phone?: string | null
           type?: Database["public"]["Enums"]["affiliate_type"]
           updated_at?: string
@@ -182,6 +197,13 @@ export type Database = {
             columns: ["parent_affiliate_id"]
             isOneToOne: false
             referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliates_permission_profile_id_fkey"
+            columns: ["permission_profile_id"]
+            isOneToOne: false
+            referencedRelation: "permission_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -570,6 +592,94 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_audit_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          company_id: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_audit_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_profiles: {
+        Row: {
+          affiliate_type: Database["public"]["Enums"]["affiliate_type"]
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          permissions: Json
+          updated_at: string
+        }
+        Insert: {
+          affiliate_type: Database["public"]["Enums"]["affiliate_type"]
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Update: {
+          affiliate_type?: Database["public"]["Enums"]["affiliate_type"]
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1013,6 +1123,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      affiliate_has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       calculate_ticket_ranking: {
         Args: { p_ticket_id: string }
         Returns: undefined
@@ -1028,6 +1142,17 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      get_affiliate_by_link_code: {
+        Args: { _link_code: string }
+        Returns: {
+          company_id: string
+          id: string
+          is_sales_paused: boolean
+          name: string
+          parent_affiliate_id: string
+          type: Database["public"]["Enums"]["affiliate_type"]
+        }[]
+      }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
