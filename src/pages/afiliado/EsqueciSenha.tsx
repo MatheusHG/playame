@@ -1,32 +1,28 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, User, Lock, AlertTriangle } from 'lucide-react';
+import { Mail, ArrowLeft, AlertTriangle, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 
-const loginSchema = z.object({
+const emailSchema = z.object({
   email: z.string().email('E-mail inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
-export default function AffiliateLogin() {
+export default function EsqueciSenha() {
   const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { affiliate, loading: authLoading, signIn } = useAffiliate();
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   // Fetch company data
   const { data: company, isLoading: companyLoading } = useQuery({
@@ -46,61 +42,39 @@ export default function AffiliateLogin() {
     enabled: !!slug,
   });
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (!authLoading && affiliate && affiliate.company.slug === slug) {
-      navigate(`/afiliado/${slug}/dashboard`);
-    }
-  }, [authLoading, affiliate, slug, navigate]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
+    setError('');
 
     // Validate
-    const result = loginSchema.safeParse({ email, password });
+    const result = emailSchema.safeParse({ email });
     if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
-        }
-      });
-      setErrors(fieldErrors);
+      setError(result.error.errors[0].message);
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      const redirectUrl = `${window.location.origin}/afiliado/${slug}/redefinir-senha`;
+      
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast({
-            title: 'Credenciais inválidas',
-            description: 'E-mail ou senha incorretos.',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Erro ao entrar',
-            description: error.message,
-            variant: 'destructive',
-          });
-        }
-        return;
+      if (resetError) {
+        throw resetError;
       }
 
-      // Success - will redirect via useEffect
+      setSent(true);
       toast({
-        title: 'Bem-vindo!',
-        description: 'Login realizado com sucesso.',
+        title: 'E-mail enviado!',
+        description: 'Verifique sua caixa de entrada para redefinir sua senha.',
       });
     } catch (err: any) {
       toast({
         title: 'Erro',
-        description: err.message || 'Erro desconhecido',
+        description: err.message || 'Erro ao enviar e-mail de recuperação',
         variant: 'destructive',
       });
     } finally {
@@ -130,6 +104,34 @@ export default function AffiliateLogin() {
 
   const primaryColor = company.primary_color || '#3B82F6';
 
+  if (sent) {
+    return (
+      <div 
+        className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4"
+        style={{ '--company-primary': primaryColor } as any}
+      >
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-xl font-bold mb-2">E-mail Enviado!</h1>
+            <p className="text-muted-foreground mb-6">
+              Se o e-mail <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              Verifique também sua pasta de spam.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to={`/afiliado/${slug}/login`}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar para o login
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div 
       className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4"
@@ -151,15 +153,17 @@ export default function AffiliateLogin() {
               {company.name.charAt(0)}
             </div>
           )}
-          <CardTitle>{company.name}</CardTitle>
-          <CardDescription>Portal do Afiliado</CardDescription>
+          <CardTitle>Esqueci minha senha</CardTitle>
+          <CardDescription>
+            Digite seu e-mail para receber um link de recuperação
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -170,27 +174,8 @@ export default function AffiliateLogin() {
                   disabled={loading}
                 />
               </div>
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  disabled={loading}
-                />
-              </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
               )}
             </div>
 
@@ -200,29 +185,19 @@ export default function AffiliateLogin() {
               disabled={loading}
               style={{ backgroundColor: primaryColor }}
             >
-              {loading ? (
-                'Entrando...'
-              ) : (
-                <>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Entrar
-                </>
-              )}
+              {loading ? 'Enviando...' : 'Enviar link de recuperação'}
             </Button>
-
-            <div className="text-center">
-              <Link 
-                to={`/afiliado/${slug}/esqueci-senha`}
-                className="text-sm text-primary hover:underline"
-              >
-                Esqueci minha senha
-              </Link>
-            </div>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Não tem uma conta? Entre em contato com o administrador.
-          </p>
+          <div className="text-center mt-6">
+            <Link 
+              to={`/afiliado/${slug}/login`}
+              className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Voltar para o login
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
