@@ -59,12 +59,15 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       return true;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries immediately
+      queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['company-financial-logs'], exact: false });
+      
       toast({
         title: 'Pagamento Aprovado',
         description: 'O pagamento foi aprovado manualmente com sucesso.',
       });
-      queryClient.invalidateQueries({ queryKey: ['company-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['payments-list'] });
       setIsApproveOpen(false);
       onSuccess?.();
     },
@@ -101,12 +104,15 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       return true;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries immediately
+      queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['company-financial-logs'], exact: false });
+      
       toast({
         title: 'Pagamento Rejeitado',
         description: 'O pagamento foi rejeitado.',
       });
-      queryClient.invalidateQueries({ queryKey: ['company-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['payments-list'] });
       setIsRejectOpen(false);
       setReason('');
       onSuccess?.();
