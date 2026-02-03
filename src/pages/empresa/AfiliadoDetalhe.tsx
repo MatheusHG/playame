@@ -14,6 +14,7 @@ import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { StatsCard } from '@/components/shared/StatsCard';
+import { ResetPasswordDialog } from '@/components/empresa/ResetPasswordDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAffiliates } from '@/hooks/useAffiliates';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -31,6 +32,7 @@ import {
   XCircle,
   Users,
   Save,
+  KeyRound,
 } from 'lucide-react';
 
 export default function AfiliadoDetalhe() {
@@ -45,6 +47,7 @@ export default function AfiliadoDetalhe() {
     to: endOfMonth(new Date()),
   });
   const [editMode, setEditMode] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
     phone: '',
@@ -325,9 +328,15 @@ export default function AfiliadoDetalhe() {
             Voltar para Afiliados
           </Button>
           {!editMode && (
-            <Button onClick={handleStartEdit}>
-              Editar Perfil
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setResetPasswordOpen(true)}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Resetar Senha
+              </Button>
+              <Button onClick={handleStartEdit}>
+                Editar Perfil
+              </Button>
+            </div>
           )}
         </div>
 
@@ -564,6 +573,13 @@ export default function AfiliadoDetalhe() {
             </TabsContent>
           )}
         </Tabs>
+
+        <ResetPasswordDialog
+          open={resetPasswordOpen}
+          onOpenChange={setResetPasswordOpen}
+          affiliate={affiliate}
+          companySlug={slug || ''}
+        />
       </div>
     </EmpresaLayout>
   );
