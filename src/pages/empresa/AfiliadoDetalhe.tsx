@@ -56,14 +56,27 @@ export default function AfiliadoDetalhe() {
   const { data: affiliate, isLoading: affiliateLoading } = useQuery({
     queryKey: ['affiliate', affiliateId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      // First get the affiliate
+      const { data: affData, error: affError } = await (supabase as any)
         .from('affiliates')
-        .select('*, parent:affiliates!affiliates_parent_affiliate_id_fkey(id, name)')
+        .select('*')
         .eq('id', affiliateId)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (affError) throw affError;
+
+      // If it's a cambista, fetch parent manager separately
+      if (affData.parent_affiliate_id) {
+        const { data: parentData } = await (supabase as any)
+          .from('affiliates')
+          .select('id, name')
+          .eq('id', affData.parent_affiliate_id)
+          .single();
+        
+        return { ...affData, parent: parentData };
+      }
+
+      return affData;
     },
     enabled: !!affiliateId,
   });
