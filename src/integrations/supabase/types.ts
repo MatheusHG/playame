@@ -14,6 +14,178 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          cambista_amount: number | null
+          cambista_id: string | null
+          cambista_percent_of_manager: number | null
+          company_id: string
+          company_net_amount: number
+          created_at: string
+          id: string
+          manager_gross_amount: number | null
+          manager_id: string | null
+          manager_net_amount: number | null
+          manager_percent: number | null
+          payment_id: string
+          raffle_id: string
+          rates_snapshot: Json
+          sale_amount: number
+          super_admin_amount: number
+          super_admin_percent: number
+          ticket_id: string
+        }
+        Insert: {
+          cambista_amount?: number | null
+          cambista_id?: string | null
+          cambista_percent_of_manager?: number | null
+          company_id: string
+          company_net_amount: number
+          created_at?: string
+          id?: string
+          manager_gross_amount?: number | null
+          manager_id?: string | null
+          manager_net_amount?: number | null
+          manager_percent?: number | null
+          payment_id: string
+          raffle_id: string
+          rates_snapshot: Json
+          sale_amount: number
+          super_admin_amount: number
+          super_admin_percent: number
+          ticket_id: string
+        }
+        Update: {
+          cambista_amount?: number | null
+          cambista_id?: string | null
+          cambista_percent_of_manager?: number | null
+          company_id?: string
+          company_net_amount?: number
+          created_at?: string
+          id?: string
+          manager_gross_amount?: number | null
+          manager_id?: string | null
+          manager_net_amount?: number | null
+          manager_percent?: number | null
+          payment_id?: string
+          raffle_id?: string
+          rates_snapshot?: Json
+          sale_amount?: number
+          super_admin_amount?: number
+          super_admin_percent?: number
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_cambista_id_fkey"
+            columns: ["cambista_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_raffle_id_fkey"
+            columns: ["raffle_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          commission_percent: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          parent_affiliate_id: string | null
+          phone: string | null
+          type: Database["public"]["Enums"]["affiliate_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          commission_percent?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_affiliate_id?: string | null
+          phone?: string | null
+          type: Database["public"]["Enums"]["affiliate_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          commission_percent?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_affiliate_id?: string | null
+          phone?: string | null
+          type?: Database["public"]["Enums"]["affiliate_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliates_parent_affiliate_id_fkey"
+            columns: ["parent_affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -64,6 +236,50 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_rate_changes: {
+        Row: {
+          changed_by: string | null
+          company_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          field_changed: string
+          id: string
+          new_value: number | null
+          old_value: number | null
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          field_changed: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          field_changed?: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_rate_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -357,6 +573,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
       }
       players: {
         Row: {
@@ -664,6 +907,7 @@ export type Database = {
       }
       tickets: {
         Row: {
+          affiliate_id: string | null
           company_id: string
           created_at: string
           eligible_prize_tiers: string[] | null
@@ -676,6 +920,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          affiliate_id?: string | null
           company_id: string
           created_at?: string
           eligible_prize_tiers?: string[] | null
@@ -688,6 +933,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          affiliate_id?: string | null
           company_id?: string
           created_at?: string
           eligible_prize_tiers?: string[] | null
@@ -700,6 +946,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tickets_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tickets_company_id_fkey"
             columns: ["company_id"]
@@ -823,6 +1076,7 @@ export type Database = {
       settle_raffle_winners: { Args: { p_raffle_id: string }; Returns: Json }
     }
     Enums: {
+      affiliate_type: "manager" | "cambista"
       app_role: "SUPER_ADMIN" | "ADMIN_EMPRESA" | "COLABORADOR"
       company_status: "active" | "suspended" | "deleted"
       payment_status:
@@ -963,6 +1217,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      affiliate_type: ["manager", "cambista"],
       app_role: ["SUPER_ADMIN", "ADMIN_EMPRESA", "COLABORADOR"],
       company_status: ["active", "suspended", "deleted"],
       payment_status: [
