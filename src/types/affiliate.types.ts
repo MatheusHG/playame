@@ -13,6 +13,11 @@ export interface Affiliate {
   email: string | null;
   commission_percent: number;
   is_active: boolean;
+  link_code: string;
+  is_sales_paused: boolean;
+  paused_at: string | null;
+  paused_by: string | null;
+  permission_profile_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
