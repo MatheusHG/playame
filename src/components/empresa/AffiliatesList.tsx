@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/accordion';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { AffiliateForm, AffiliateFormData } from './AffiliateForm';
+import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { useAffiliates } from '@/hooks/useAffiliates';
 import { Affiliate } from '@/types/affiliate.types';
 import { 
@@ -30,6 +32,7 @@ import {
   Phone,
   Mail,
   Eye,
+  KeyRound,
 } from 'lucide-react';
 
 interface AffiliatesListProps {
@@ -53,6 +56,13 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
   const [parentManagerId, setParentManagerId] = useState<string | undefined>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [affiliateToDelete, setAffiliateToDelete] = useState<Affiliate | null>(null);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [affiliateToReset, setAffiliateToReset] = useState<Affiliate | null>(null);
+
+  const handleResetPassword = (affiliate: Affiliate) => {
+    setAffiliateToReset(affiliate);
+    setResetPasswordOpen(true);
+  };
 
   const handleOpenNewManager = () => {
     setEditingAffiliate(undefined);
@@ -200,6 +210,11 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                           <Pencil className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleResetPassword(manager)}>
+                          <KeyRound className="h-4 w-4 mr-2" />
+                          Resetar Senha
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           onClick={() => handleDelete(manager)}
                           className="text-destructive"
@@ -283,6 +298,11 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleResetPassword(cambista)}>
+                                    <KeyRound className="h-4 w-4 mr-2" />
+                                    Resetar Senha
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => handleDelete(cambista)}
                                     className="text-destructive"
@@ -323,6 +343,13 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
         confirmLabel="Remover"
         onConfirm={confirmDelete}
         variant="destructive"
+      />
+
+      <ResetPasswordDialog
+        open={resetPasswordOpen}
+        onOpenChange={setResetPasswordOpen}
+        affiliate={affiliateToReset}
+        companySlug={slug || ''}
       />
     </div>
   );
