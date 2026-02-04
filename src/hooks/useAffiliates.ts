@@ -10,7 +10,10 @@ interface CreateAffiliateData {
   name: string;
   phone?: string;
   email?: string;
+  password?: string;
   commission_percent: number;
+  permission_profile_id?: string;
+  create_user_account?: boolean;
 }
 
 interface UpdateAffiliateData {
@@ -57,16 +60,49 @@ export function useAffiliates(companyId?: string) {
     mutationFn: async (data: CreateAffiliateData) => {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // First, create the affiliate record
       const { data: affiliate, error } = await (supabase as any)
         .from('affiliates')
         .insert({
-          ...data,
+          company_id: data.company_id,
+          type: data.type,
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          commission_percent: data.commission_percent,
+          parent_affiliate_id: data.parent_affiliate_id,
+          permission_profile_id: data.permission_profile_id,
           created_by: user?.id,
         })
         .select()
         .single();
 
       if (error) throw error;
+      
+      // If creating user account, call edge function
+      if (data.create_user_account && data.email && data.password) {
+        const { data: userResult, error: userError } = await supabase.functions.invoke(
+          'create-affiliate-user',
+          {
+            body: {
+              email: data.email,
+              password: data.password,
+              affiliate_id: affiliate.id,
+              name: data.name,
+            },
+          }
+        );
+
+        if (userError || userResult?.error) {
+          // Delete the affiliate if user creation failed
+          await (supabase as any)
+            .from('affiliates')
+            .delete()
+            .eq('id', affiliate.id);
+          
+          throw new Error(userResult?.error || userError?.message || 'Erro ao criar conta de acesso');
+        }
+      }
       
       // Log de auditoria
       await supabase.rpc('log_audit', {
@@ -79,7 +115,8 @@ export function useAffiliates(companyId?: string) {
         p_changes: { 
           type: data.type, 
           name: data.name, 
-          commission_percent: data.commission_percent 
+          commission_percent: data.commission_percent,
+          has_user_account: data.create_user_account,
         },
       });
 
