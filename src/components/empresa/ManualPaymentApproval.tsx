@@ -29,6 +29,7 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [actionCompleted, setActionCompleted] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -59,6 +60,7 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       return true;
     },
     onSuccess: () => {
+      setActionCompleted(true);
       // Invalidate all payment-related queries immediately
       queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
@@ -104,6 +106,7 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       return true;
     },
     onSuccess: () => {
+      setActionCompleted(true);
       // Invalidate all payment-related queries immediately
       queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
@@ -126,7 +129,8 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
     },
   });
 
-  if (payment.status !== 'pending' && payment.status !== 'processing') {
+  // Hide buttons if action was completed or status is no longer pending
+  if (actionCompleted || (payment.status !== 'pending' && payment.status !== 'processing')) {
     return null;
   }
 
