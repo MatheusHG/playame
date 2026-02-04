@@ -48,7 +48,7 @@ export function AffiliateProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAffiliateData = useCallback(async (userId: string) => {
     try {
-      // Fetch affiliate linked to this user
+      // Fetch affiliate linked to this user (use maybeSingle to avoid error when no rows found)
       const { data: affiliateData, error: affError } = await (supabase as any)
         .from('affiliates')
         .select(`
@@ -59,21 +59,21 @@ export function AffiliateProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', userId)
         .eq('is_active', true)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (affError) {
-        if (affError.code === 'PGRST116') {
-          // Not an affiliate
-          setAffiliate(null);
-          setError('Usuário não é um afiliado');
-        } else {
-          throw affError;
-        }
+        console.error('Error fetching affiliate data:', affError);
+        setError('Erro ao carregar dados do afiliado');
+        setAffiliate(null);
       } else if (affiliateData) {
         setAffiliate({
           ...affiliateData,
           permissions: affiliateData.permission_profile?.permissions || {},
         });
+        setError(null);
+      } else {
+        // Not an affiliate - this is fine, just set null
+        setAffiliate(null);
         setError(null);
       }
     } catch (err) {
