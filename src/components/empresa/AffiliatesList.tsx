@@ -21,6 +21,7 @@ import { AffiliateForm, AffiliateFormData } from './AffiliateForm';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { useAffiliates } from '@/hooks/useAffiliates';
 import { Affiliate } from '@/types/affiliate.types';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
   MoreHorizontal, 
@@ -33,6 +34,9 @@ import {
   Mail,
   Eye,
   KeyRound,
+  Copy,
+  ExternalLink,
+  Link2,
 } from 'lucide-react';
 
 interface AffiliatesListProps {
@@ -41,6 +45,7 @@ interface AffiliatesListProps {
 
 export function AffiliatesList({ companyId }: AffiliatesListProps) {
   const { slug } = useParams<{ slug: string }>();
+  const { toast } = useToast();
   const {
     managers,
     getCambistas,
@@ -58,6 +63,20 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
   const [affiliateToDelete, setAffiliateToDelete] = useState<Affiliate | null>(null);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [affiliateToReset, setAffiliateToReset] = useState<Affiliate | null>(null);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  
+  const getAffiliateLoginUrl = () => `${baseUrl}/afiliado/${slug}/login`;
+  
+  const getAffiliateSalesLink = (linkCode: string) => `${baseUrl}/empresa/${slug}?ref=${linkCode}`;
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: 'Link copiado!',
+      description: `${label} foi copiado para a área de transferência.`,
+    });
+  };
 
   const handleResetPassword = (affiliate: Affiliate) => {
     setAffiliateToReset(affiliate);
@@ -218,6 +237,15 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                           Resetar Senha
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => copyToClipboard(getAffiliateLoginUrl(), 'Link de login')}>
+                          <Link2 className="h-4 w-4 mr-2" />
+                          Copiar Link de Login
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => copyToClipboard(getAffiliateSalesLink(manager.link_code), 'Link de vendas')}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copiar Link de Vendas
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           onClick={() => handleDelete(manager)}
                           className="text-destructive"
@@ -304,6 +332,15 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                                   <DropdownMenuItem onClick={() => handleResetPassword(cambista)}>
                                     <KeyRound className="h-4 w-4 mr-2" />
                                     Resetar Senha
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => copyToClipboard(getAffiliateLoginUrl(), 'Link de login')}>
+                                    <Link2 className="h-4 w-4 mr-2" />
+                                    Copiar Link de Login
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => copyToClipboard(getAffiliateSalesLink(cambista.link_code), 'Link de vendas')}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copiar Link de Vendas
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
