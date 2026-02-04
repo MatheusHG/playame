@@ -109,8 +109,11 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
           name: data.name,
           phone: data.phone || undefined,
           email: data.email || undefined,
+          password: data.password,
           commission_percent: data.commission_percent,
           parent_affiliate_id: parentManagerId,
+          permission_profile_id: data.permission_profile_id,
+          create_user_account: data.create_user_account,
         },
         { onSuccess: () => setFormOpen(false) }
       );
@@ -333,6 +336,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
         managers={managers}
         type={newAffiliateType}
         loading={createAffiliate.isPending || updateAffiliate.isPending}
+        companyId={companyId}
       />
 
       <ConfirmDialog
