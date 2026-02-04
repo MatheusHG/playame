@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
@@ -19,6 +19,7 @@ import { BannerCarousel } from '@/components/public/BannerCarousel';
 
 export default function LandingPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const { setCompanySlug, company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -30,6 +31,14 @@ export default function LandingPage() {
       setCompanySlug(slug);
     }
   }, [slug, setCompanySlug]);
+
+  // Capture ref from URL and store in localStorage for affiliate tracking
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode && slug) {
+      localStorage.setItem(`affiliate_ref_${slug}`, refCode);
+    }
+  }, [searchParams, slug]);
 
   useCompanyBranding();
 
