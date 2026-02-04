@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
@@ -16,7 +16,6 @@ import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { PublicRanking } from '@/components/public/PublicRanking';
 import { PrizeTiersDisplay } from '@/components/public/PrizeTiersDisplay';
-import { AffiliateSelector } from '@/components/public/AffiliateSelector';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -31,6 +30,7 @@ interface TicketSelection {
 
 export default function SorteioPage() {
   const { slug, raffleId } = useParams<{ slug: string; raffleId: string }>();
+  const [searchParams] = useSearchParams();
   const { setCompanySlug, company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
   const { toast } = useToast();
@@ -41,7 +41,55 @@ export default function SorteioPage() {
   const [activeTicketId, setActiveTicketId] = useState(1);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | undefined>();
+  const [affiliateId, setAffiliateId] = useState<string | null>(null);
+
+  // Capture ref from URL and store in localStorage
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode && slug) {
+      // Store the ref code in localStorage for this company
+      localStorage.setItem(`affiliate_ref_${slug}`, refCode);
+    }
+  }, [searchParams, slug]);
+
+  // Fetch affiliate by link_code from URL or localStorage
+  useEffect(() => {
+    const fetchAffiliateByRef = async () => {
+      const refCode = searchParams.get('ref') || (slug ? localStorage.getItem(`affiliate_ref_${slug}`) : null);
+      
+      if (!refCode || !company?.id) {
+        setAffiliateId(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_affiliate_by_link_code', { _link_code: refCode });
+
+        if (error) {
+          console.error('Error fetching affiliate by ref:', error);
+          setAffiliateId(null);
+          return;
+        }
+
+        // Find affiliate that matches this company and is not paused
+        const validAffiliate = data?.find(
+          (a: any) => a.company_id === company.id && !a.is_sales_paused
+        );
+
+        if (validAffiliate) {
+          setAffiliateId(validAffiliate.id);
+        } else {
+          setAffiliateId(null);
+        }
+      } catch (err) {
+        console.error('Error fetching affiliate:', err);
+        setAffiliateId(null);
+      }
+    };
+
+    fetchAffiliateByRef();
+  }, [searchParams, slug, company?.id]);
 
   useEffect(() => {
     if (slug) {
@@ -212,7 +260,7 @@ export default function SorteioPage() {
           raffleId: raffle.id,
           quantity: tickets.length,
           ticketNumbers: tickets.map(t => t.numbers.sort((a, b) => a - b)),
-          affiliateId: selectedAffiliateId && selectedAffiliateId !== '__none__' ? selectedAffiliateId : undefined,
+          affiliateId: affiliateId || undefined,
         },
       });
 
@@ -476,12 +524,6 @@ export default function SorteioPage() {
                   </div>
                 )}
 
-                {/* Affiliate Selector */}
-                <AffiliateSelector
-                  companyId={raffle.company_id}
-                  value={selectedAffiliateId}
-                  onChange={setSelectedAffiliateId}
-                />
 
                 {/* Summary */}
                 <div className="w-full bg-muted rounded-lg p-4 space-y-2">
