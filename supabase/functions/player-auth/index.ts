@@ -65,20 +65,38 @@ serve(async (req) => {
   );
 
   try {
-    const { action, companyId, cpf, password, name, city, phone } = await req.json();
+    const {
+      action,
+      companyId,
+      cpf,
+      password,
+      name,
+      city,
+      phone,
+      playerId,
+      currentPassword,
+      newPassword,
+    } = await req.json();
     const clientIP = getClientIP(req);
 
     if (!companyId) {
       throw new Error("Company ID is required");
     }
 
-    if (!cpf || !validateCPF(cpf)) {
-      throw new Error("CPF inválido");
-    }
+    const requiresCpf = action === "login" || action === "register";
+    let cleanedCPF = "";
+    let cpfHash = "";
+    let cpfLast4 = "";
 
-    const cleanedCPF = cpf.replace(/\D/g, "");
-    const cpfHash = await hashCPF(cleanedCPF);
-    const cpfLast4 = cleanedCPF.slice(-4);
+    if (requiresCpf) {
+      if (!cpf || !validateCPF(cpf)) {
+        throw new Error("CPF inválido");
+      }
+
+      cleanedCPF = cpf.replace(/\D/g, "");
+      cpfHash = await hashCPF(cleanedCPF);
+      cpfLast4 = cleanedCPF.slice(-4);
+    }
 
     // Rate limiting for login attempts (5 attempts per 5 minutes, block for 15 minutes)
     if (action === "login") {
@@ -94,6 +112,115 @@ serve(async (req) => {
       if (!allowed) {
         throw new Error("Muitas tentativas de login. Tente novamente em 15 minutos.");
       }
+    }
+
+    if (action === "update-profile") {
+      if (!playerId) throw new Error("playerId é obrigatório");
+      if (!name || name.trim().length < 3) throw new Error("Nome deve ter pelo menos 3 caracteres");
+
+      const updateIdentifier = `player_update_profile:${companyId}:${playerId}:${clientIP}`;
+      const { data: allowed } = await supabase.rpc("check_rate_limit", {
+        p_identifier: updateIdentifier,
+        p_action: "player_update_profile",
+        p_max_attempts: 10,
+        p_window_seconds: 600,
+        p_block_seconds: 600,
+      });
+      if (!allowed) throw new Error("Muitas alterações. Tente novamente mais tarde.");
+
+      const { data: updated, error } = await supabase
+        .from("players")
+        .update({
+          name: name.trim(),
+          city: city?.trim() || null,
+          phone: phone?.trim() || null,
+        })
+        .eq("id", playerId)
+        .eq("company_id", companyId)
+        .select("id, name, cpf_last4, city, phone")
+        .single();
+
+      if (error) throw error;
+
+      await supabase.rpc("log_audit", {
+        p_company_id: companyId,
+        p_user_id: null,
+        p_player_id: updated.id,
+        p_action: "PLAYER_PROFILE_UPDATED",
+        p_entity_type: "player",
+        p_entity_id: updated.id,
+        p_changes: { name: updated.name, city: updated.city, phone: updated.phone },
+      });
+
+      const sessionToken = crypto.randomUUID();
+      return new Response(
+        JSON.stringify({
+          success: true,
+          player: {
+            id: updated.id,
+            name: updated.name,
+            cpf_last4: updated.cpf_last4,
+            city: updated.city,
+            phone: updated.phone,
+          },
+          sessionToken,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
+    if (action === "change-password") {
+      if (!playerId) throw new Error("playerId é obrigatório");
+      if (!currentPassword) throw new Error("Senha atual é obrigatória");
+      if (!newPassword || newPassword.length < 6) throw new Error("Nova senha deve ter pelo menos 6 caracteres");
+
+      const changeIdentifier = `player_change_password:${companyId}:${playerId}:${clientIP}`;
+      const { data: allowed } = await supabase.rpc("check_rate_limit", {
+        p_identifier: changeIdentifier,
+        p_action: "player_change_password",
+        p_max_attempts: 5,
+        p_window_seconds: 900,
+        p_block_seconds: 900,
+      });
+      if (!allowed) throw new Error("Muitas tentativas. Tente novamente em 15 minutos.");
+
+      const { data: player, error } = await supabase
+        .from("players")
+        .select("id, password_hash")
+        .eq("id", playerId)
+        .eq("company_id", companyId)
+        .single();
+
+      if (error) throw error;
+
+      const currentHash = await hashPassword(currentPassword);
+      if (player.password_hash !== currentHash) {
+        throw new Error("Senha atual incorreta");
+      }
+
+      const newHash = await hashPassword(newPassword);
+      const { error: updateError } = await supabase
+        .from("players")
+        .update({ password_hash: newHash })
+        .eq("id", playerId)
+        .eq("company_id", companyId);
+
+      if (updateError) throw updateError;
+
+      await supabase.rpc("log_audit", {
+        p_company_id: companyId,
+        p_user_id: null,
+        p_player_id: playerId,
+        p_action: "PLAYER_PASSWORD_CHANGED",
+        p_entity_type: "player",
+        p_entity_id: playerId,
+        p_changes: null,
+      });
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
     }
 
     // Rate limiting for CPF lookup (10 attempts per 5 minutes)
@@ -189,6 +316,7 @@ serve(async (req) => {
             name: player.name,
             cpf_last4: player.cpf_last4,
             city: player.city,
+            phone: player.phone,
           },
           sessionToken,
         }),
@@ -259,6 +387,7 @@ serve(async (req) => {
             name: player.name,
             cpf_last4: player.cpf_last4,
             city: player.city,
+            phone: player.phone,
           },
           sessionToken,
         }),

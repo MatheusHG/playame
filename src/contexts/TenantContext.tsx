@@ -10,8 +10,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [currentSlug, setCurrentSlug] = useState<string | null>(null);
 
-  const fetchCompanyBySlug = useCallback(async (slug: string) => {
-    if (!slug) {
+  const fetchCompanyByIdentifier = useCallback(async (identifier: string) => {
+    if (!identifier) {
       setCompany(null);
       setLoading(false);
       return;
@@ -21,10 +21,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          identifier
+        );
+
+      // Se NÃO for UUID, não consultamos por `id` (evita erro de UUID inválido).
       const { data, error: fetchError } = await supabase
         .from('companies')
         .select('*')
-        .eq('slug', slug)
+        .eq(isUuid ? 'id' : 'slug', identifier)
         .eq('status', 'active')
         .is('deleted_at', null)
         .maybeSingle();
@@ -51,9 +57,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (currentSlug) {
-      fetchCompanyBySlug(currentSlug);
+      fetchCompanyByIdentifier(currentSlug);
     }
-  }, [currentSlug, fetchCompanyBySlug]);
+  }, [currentSlug, fetchCompanyByIdentifier]);
 
   const setCompanySlug = useCallback((slug: string) => {
     setCurrentSlug(slug);

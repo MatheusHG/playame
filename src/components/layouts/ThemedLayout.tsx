@@ -5,7 +5,7 @@ import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { User } from 'lucide-react';
+import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
 
 interface ThemedLayoutProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ interface ThemedLayoutProps {
 export function ThemedLayout({ children, showHeader = true, className }: ThemedLayoutProps) {
   const { loading, error } = useTenant();
   const company = useCompanyBranding();
-  const { player, isAuthenticated } = usePlayer();
+  const { player, isAuthenticated, logout } = usePlayer();
   const { slug } = useParams<{ slug: string }>();
 
   if (loading) {
@@ -65,12 +65,7 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
 
             {/* Player Account Link */}
             {isAuthenticated && player && slug && (
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/empresa/${slug}/minha-conta`}>
-                  <User className="h-4 w-4 mr-2" />
-                  {player.name.split(' ')[0]}
-                </Link>
-              </Button>
+              <PlayerAccountMenu slug={slug} player={player} onLogout={logout} variant="outline" />
             )}
           </div>
         </header>

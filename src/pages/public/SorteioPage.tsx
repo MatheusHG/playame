@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,10 +18,13 @@ import { PublicRanking } from '@/components/public/PublicRanking';
 import { PrizeTiersDisplay } from '@/components/public/PrizeTiersDisplay';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
 
 type Raffle = Database['public']['Tables']['raffles']['Row'] & {
   prize_tiers: Database['public']['Tables']['prize_tiers']['Row'][];
 };
+
+type RaffleDiscount = Database['public']['Tables']['raffle_discounts']['Row'];
 
 interface TicketSelection {
   id: number;
@@ -40,8 +43,10 @@ export default function SorteioPage() {
   const [tickets, setTickets] = useState<TicketSelection[]>([{ id: 1, numbers: [] }]);
   const [activeTicketId, setActiveTicketId] = useState(1);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [addAnotherTicketDialogOpen, setAddAnotherTicketDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [affiliateId, setAffiliateId] = useState<string | null>(null);
+  const promptedTicketIdsRef = useRef<Set<number>>(new Set());
 
   // Capture ref from URL and store in localStorage
   useEffect(() => {
@@ -115,19 +120,19 @@ export default function SorteioPage() {
     },
   });
 
-  // Fetch total sales for prize calculation
-  const { data: totalSales = 0 } = useQuery({
-    queryKey: ['raffle-total-sales', raffleId],
+  // Fetch net sales (já com taxas descontadas) para cálculo do prêmio
+  const { data: netSales = 0 } = useQuery({
+    queryKey: ['raffle-total-net-sales', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('amount')
+        .select('net_amount')
         .eq('raffle_id', raffleId!)
         .eq('status', 'succeeded');
 
       if (error) throw error;
-      return data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      return data?.reduce((sum, p) => sum + Number(p.net_amount || 0), 0) || 0;
     },
   });
 
@@ -193,10 +198,10 @@ export default function SorteioPage() {
       return Number(raffle.fixed_prize_value) || 0;
     }
     if (raffle.prize_mode === 'PERCENT_ONLY') {
-      return totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+      return netSales * (Number(raffle.prize_percent_of_sales) / 100);
     }
     // FIXED_PLUS_PERCENT
-    return (Number(raffle.fixed_prize_value) || 0) + totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+    return (Number(raffle.fixed_prize_value) || 0) + netSales * (Number(raffle.prize_percent_of_sales) / 100);
   };
 
   const prizePool = calculatePrizePool();
@@ -207,26 +212,55 @@ export default function SorteioPage() {
   const toggleNumber = (num: number) => {
     if (!raffle) return;
     
-    setTickets(prev => prev.map(ticket => {
-      if (ticket.id !== activeTicketId) return ticket;
-      
-      if (ticket.numbers.includes(num)) {
-        return { ...ticket, numbers: ticket.numbers.filter((n) => n !== num) };
-      } else if (ticket.numbers.length < raffle.numbers_per_ticket) {
-        return { ...ticket, numbers: [...ticket.numbers, num] };
+    setTickets((prev) => {
+      let didCompleteActiveTicket = false;
+
+      const next = prev.map((ticket) => {
+        if (ticket.id !== activeTicketId) return ticket;
+
+        let nextNumbers: number[] = ticket.numbers;
+        if (ticket.numbers.includes(num)) {
+          nextNumbers = ticket.numbers.filter((n) => n !== num);
+        } else if (ticket.numbers.length < raffle.numbers_per_ticket) {
+          nextNumbers = [...ticket.numbers, num];
+        }
+
+        if (
+          nextNumbers.length === raffle.numbers_per_ticket &&
+          !promptedTicketIdsRef.current.has(ticket.id)
+        ) {
+          didCompleteActiveTicket = true;
+          promptedTicketIdsRef.current.add(ticket.id);
+        }
+
+        return { ...ticket, numbers: nextNumbers };
+      });
+
+      if (didCompleteActiveTicket) {
+        setAddAnotherTicketDialogOpen(true);
       }
-      return ticket;
-    }));
+
+      return next;
+    });
   };
 
   const generateRandomNumbers = () => {
     if (!raffle) return;
     
     const shuffled = [...availableNumbers].sort(() => Math.random() - 0.5);
-    setTickets(prev => prev.map(ticket => {
-      if (ticket.id !== activeTicketId) return ticket;
-      return { ...ticket, numbers: shuffled.slice(0, raffle.numbers_per_ticket) };
-    }));
+    setTickets((prev) => {
+      const next = prev.map((ticket) => {
+        if (ticket.id !== activeTicketId) return ticket;
+        return { ...ticket, numbers: shuffled.slice(0, raffle.numbers_per_ticket) };
+      });
+
+      if (!promptedTicketIdsRef.current.has(activeTicketId)) {
+        promptedTicketIdsRef.current.add(activeTicketId);
+        setAddAnotherTicketDialogOpen(true);
+      }
+
+      return next;
+    });
   };
 
   const addTicket = () => {
@@ -246,7 +280,39 @@ export default function SorteioPage() {
 
   const allTicketsComplete = raffle ? tickets.every(t => t.numbers.length === raffle.numbers_per_ticket) : false;
   const ticketPrice = raffle ? Number(raffle.ticket_price) : 0;
-  const totalPrice = ticketPrice * tickets.length;
+
+  const { data: raffleDiscounts = [] } = useQuery({
+    queryKey: ['raffle-discounts-public', raffleId],
+    enabled: !!raffleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('raffle_discounts')
+        .select('*')
+        .eq('raffle_id', raffleId!)
+        .eq('is_active', true)
+        .order('min_quantity', { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as RaffleDiscount[];
+    },
+  });
+
+  const quantity = tickets.length;
+  const originalTotalPrice = ticketPrice * quantity;
+  const appliedDiscount = useMemo(() => {
+    if (!raffleDiscounts?.length) return null;
+    const now = new Date();
+    const valid = raffleDiscounts.filter((d) => {
+      const startsOk = !d.starts_at || now >= new Date(d.starts_at);
+      const endsOk = !d.ends_at || now <= new Date(d.ends_at);
+      return startsOk && endsOk && d.is_active;
+    });
+    return valid.find((d) => quantity >= Number(d.min_quantity)) || null;
+  }, [raffleDiscounts, quantity]);
+
+  const discountPercent = appliedDiscount ? Number(appliedDiscount.discount_percent) : 0;
+  const discountAmount = originalTotalPrice * (discountPercent / 100);
+  const totalPrice = originalTotalPrice - discountAmount;
 
   const handlePurchase = async () => {
     if (!player || !raffle) return;
@@ -334,10 +400,15 @@ export default function SorteioPage() {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <span className="text-white/80 text-sm">{player?.name.split(' ')[0]}</span>
-              <Button variant="secondary" size="sm" onClick={logout}>
-                Sair
-              </Button>
+              {player && (
+                <PlayerAccountMenu
+                  slug={slug!}
+                  player={player}
+                  onLogout={logout}
+                  variant="secondary"
+                  className="bg-white/20 text-white hover:bg-white/30"
+                />
+              )}
             </div>
           ) : (
             <Button variant="secondary" size="sm" onClick={() => openAuth('login')}>
@@ -466,45 +537,50 @@ export default function SorteioPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-10 gap-1 sm:gap-2">
-                    {availableNumbers.map((num) => {
-                      const isSelected = selectedNumbers.includes(num);
-                      const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
+                  <div className="rounded-lg border bg-background p-3 sm:p-4">
+                    <div className="max-h-[420px] overflow-auto pr-1">
+                      <div className="grid grid-cols-10 sm:grid-cols-12 gap-1">
+                        {availableNumbers.map((num) => {
+                          const isSelected = selectedNumbers.includes(num);
+                          const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
 
-                      return (
-                        <button
-                          key={num}
-                          onClick={() => toggleNumber(num)}
-                          disabled={isFull}
-                          className={cn(
-                            'aspect-square rounded-lg font-mono text-sm sm:text-base font-bold transition-all',
-                            'flex items-center justify-center',
-                            isSelected
-                              ? 'bg-primary text-primary-foreground shadow-lg scale-105'
-                              : 'bg-muted hover:bg-muted/80',
-                            isFull && 'opacity-50 cursor-not-allowed'
-                          )}
-                        >
-                          {String(num).padStart(2, '0')}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedNumbers.length > 0 && (
-                    <div className="mt-4 p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-2">Números selecionados:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedNumbers
-                          .sort((a, b) => a - b)
-                          .map((num) => (
-                            <Badge key={num} variant="default" className="font-mono text-sm px-2">
+                          return (
+                            <button
+                              key={num}
+                              onClick={() => toggleNumber(num)}
+                              disabled={isFull}
+                              className={cn(
+                                'h-9 w-full rounded-md font-mono text-xs sm:text-sm font-semibold transition-colors',
+                                'flex items-center justify-center',
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted hover:bg-muted/80',
+                                isFull && 'opacity-50 cursor-not-allowed'
+                              )}
+                            >
                               {String(num).padStart(2, '0')}
-                            </Badge>
-                          ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
+
+                    {selectedNumbers.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm text-muted-foreground mb-2">Números selecionados:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedNumbers
+                            .sort((a, b) => a - b)
+                            .map((num) => (
+                              <Badge key={num} variant="default" className="font-mono text-sm px-2">
+                                {String(num).padStart(2, '0')}
+                              </Badge>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </CardContent>
               <CardFooter className="flex-col gap-4 border-t pt-6">
@@ -529,8 +605,14 @@ export default function SorteioPage() {
                 <div className="w-full bg-muted rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                    <span>R$ {totalPrice.toFixed(2)}</span>
+                    <span>R$ {originalTotalPrice.toFixed(2)}</span>
                   </div>
+                  {discountPercent > 0 && (
+                    <div className="flex justify-between text-sm text-green-700">
+                      <span>Desconto ({discountPercent}%)</span>
+                      <span>- R$ {discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
                     <span>Total</span>
                     <span>R$ {totalPrice.toFixed(2)}</span>
@@ -653,8 +735,14 @@ export default function SorteioPage() {
             <div className="bg-muted rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                <span>R$ {totalPrice.toFixed(2)}</span>
+                    <span>R$ {originalTotalPrice.toFixed(2)}</span>
               </div>
+                  {discountPercent > 0 && (
+                    <div className="flex justify-between text-sm text-green-700">
+                      <span>Desconto ({discountPercent}%)</span>
+                      <span>- R$ {discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total</span>
                 <span>R$ {totalPrice.toFixed(2)}</span>
@@ -683,6 +771,31 @@ export default function SorteioPage() {
                   Pagar R$ {totalPrice.toFixed(2)}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prompt to add another ticket when current one is complete */}
+      <Dialog open={addAnotherTicketDialogOpen} onOpenChange={setAddAnotherTicketDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar mais 1 cartela?</DialogTitle>
+            <DialogDescription>
+              Você completou os {raffle?.numbers_per_ticket} números desta cartela. Quer adicionar mais uma para aumentar suas chances?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddAnotherTicketDialogOpen(false)}>
+              Não, continuar
+            </Button>
+            <Button
+              onClick={() => {
+                setAddAnotherTicketDialogOpen(false);
+                addTicket();
+              }}
+            >
+              Adicionar 1 cartela
             </Button>
           </DialogFooter>
         </DialogContent>

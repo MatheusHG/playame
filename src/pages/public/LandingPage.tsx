@@ -16,6 +16,12 @@ import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { RafflePublicCard } from '@/components/public/RafflePublicCard';
 import { PublicRanking } from '@/components/public/PublicRanking';
 import { BannerCarousel } from '@/components/public/BannerCarousel';
+import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
+
+type PaymentNetAmountRow = {
+  raffle_id: string;
+  net_amount: number | null;
+};
 
 export default function LandingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -77,13 +83,43 @@ export default function LandingPage() {
     },
   });
 
-  // Calculate total prize value
-  const totalPrize = raffles?.reduce((sum, r) => {
-    if (r.prize_mode === 'FIXED') {
-      return sum + Number(r.fixed_prize_value);
-    }
-    return sum + Number(r.fixed_prize_value || 0);
-  }, 0) || 0;
+  const activeRaffleIds = (raffles || []).map((r) => r.id);
+  const activeRaffleIdsKey = activeRaffleIds.join(',');
+
+  // Net sales (já descontando taxas/comissões) por sorteio
+  const { data: netSalesByRaffle = {} } = useQuery({
+    queryKey: ['public-net-sales-by-raffle', company?.id, activeRaffleIdsKey],
+    enabled: !!company?.id && activeRaffleIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('raffle_id, net_amount')
+        .eq('company_id', company!.id)
+        .eq('status', 'succeeded')
+        .in('raffle_id', activeRaffleIds);
+
+      if (error) throw error;
+
+      const totals: Record<string, number> = {};
+      for (const p of (data || []) as PaymentNetAmountRow[]) {
+        const raffleId = p.raffle_id;
+        totals[raffleId] = (totals[raffleId] || 0) + Number(p.net_amount || 0);
+      }
+      return totals;
+    },
+  });
+
+  // Soma total de prêmios (todos os sorteios), usando vendas líquidas (net_amount)
+  const totalPrize = (raffles || []).reduce((sum, r) => {
+    const netSales = Number(netSalesByRaffle[r.id] || 0);
+    const fixed = Number(r.fixed_prize_value || 0);
+    const percent = Number(r.prize_percent_of_sales || 0) / 100;
+
+    if (r.prize_mode === 'FIXED') return sum + fixed;
+    if (r.prize_mode === 'PERCENT_ONLY') return sum + netSales * percent;
+    // FIXED_PLUS_PERCENT
+    return sum + fixed + netSales * percent;
+  }, 0);
 
   const openAuth = (mode: 'login' | 'register') => {
     setAuthMode(mode);
@@ -127,13 +163,15 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                <span className="text-white/80 text-sm hidden sm:block">
-                  Olá, {player?.name.split(' ')[0]}
-                </span>
-                <Button variant="secondary" size="sm" onClick={logout}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
-                </Button>
+                {player && (
+                  <PlayerAccountMenu
+                    slug={slug!}
+                    player={player}
+                    onLogout={logout}
+                    variant="secondary"
+                    className="bg-white/20 text-white hover:bg-white/30"
+                  />
+                )}
               </>
             ) : (
               <>

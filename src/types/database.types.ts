@@ -142,6 +142,10 @@ export interface Payment {
   player_id: string;
   raffle_id: string;
   amount: number;
+  original_amount?: number | null;
+  discount_percent?: number | null;
+  discount_amount?: number | null;
+  discount_rule_id?: string | null;
   admin_fee: number;
   net_amount: number;
   stripe_payment_intent_id: string | null;

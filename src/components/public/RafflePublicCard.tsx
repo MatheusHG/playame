@@ -25,18 +25,18 @@ export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps)
 
   const prizeTiers = raffle.prize_tiers?.sort((a, b) => b.hits_required - a.hits_required) || [];
 
-  // Fetch total sales for prize calculation
-  const { data: totalSales = 0 } = useQuery({
-    queryKey: ['raffle-sales', raffle.id],
+  // Fetch net sales (já com taxas descontadas) para cálculo do prêmio
+  const { data: netSales = 0 } = useQuery({
+    queryKey: ['raffle-net-sales', raffle.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('amount')
+        .select('net_amount')
         .eq('raffle_id', raffle.id)
         .eq('status', 'succeeded');
 
       if (error) throw error;
-      return data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      return data?.reduce((sum, p) => sum + Number(p.net_amount || 0), 0) || 0;
     },
   });
 
@@ -46,10 +46,10 @@ export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps)
       return Number(raffle.fixed_prize_value) || 0;
     }
     if (raffle.prize_mode === 'PERCENT_ONLY') {
-      return totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+      return netSales * (Number(raffle.prize_percent_of_sales) / 100);
     }
     // FIXED_PLUS_PERCENT
-    return (Number(raffle.fixed_prize_value) || 0) + totalSales * (Number(raffle.prize_percent_of_sales) / 100);
+    return (Number(raffle.fixed_prize_value) || 0) + netSales * (Number(raffle.prize_percent_of_sales) / 100);
   };
 
   const prizePool = calculatePrizePool();

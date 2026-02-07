@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -33,14 +33,36 @@ import { Link } from 'react-router-dom';
 export default function MinhaConta() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { player, companyId, isAuthenticated, isLoading: playerLoading, logout } = usePlayer();
+  const [searchParams] = useSearchParams();
+  const { player, companyId, isAuthenticated, isLoading: playerLoading, logout, updatePlayer } = usePlayer();
   const { setCompanySlug, company, loading: tenantLoading } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [editName, setEditName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState<'bilhetes' | 'transacoes' | 'sorteios' | 'configuracoes'>('bilhetes');
+
+  useEffect(() => {
+    if (player) {
+      setEditName(player.name || '');
+      setEditCity(player.city || '');
+      setEditPhone((player as any).phone || '');
+    }
+  }, [player]);
+
+  useEffect(() => {
+    const tab = (searchParams.get('tab') || 'bilhetes').toLowerCase();
+    if (tab === 'bilhetes' || tab === 'transacoes' || tab === 'sorteios' || tab === 'configuracoes') {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (slug) {
@@ -64,8 +86,9 @@ export default function MinhaConta() {
         .from('tickets')
         .select(`
           *,
-          raffle:raffles(id, name, status, image_url),
-          ticket_numbers(number)
+          raffle:raffles(id, name, status, image_url, current_draw_count, numbers_per_ticket),
+          ticket_numbers(number),
+          ranking:ticket_ranking(hits, missing, rank_position, last_calculated_at)
         `)
         .eq('player_id', player!.id)
         .eq('company_id', companyId!)
@@ -131,6 +154,15 @@ export default function MinhaConta() {
       return;
     }
 
+    if (!currentPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Informe sua senha atual',
+      });
+      return;
+    }
+
     if (newPassword.length < 6) {
       toast({
         variant: 'destructive',
@@ -145,8 +177,10 @@ export default function MinhaConta() {
       const { error } = await supabase.functions.invoke('player-auth', {
         body: { 
           action: 'change-password', 
+          companyId,
           playerId: player?.id,
-          newPassword 
+          currentPassword,
+          newPassword,
         },
       });
 
@@ -156,18 +190,53 @@ export default function MinhaConta() {
         title: 'Sucesso',
         description: 'Senha alterada com sucesso',
       });
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível alterar a senha',
+        description: err instanceof Error ? err.message : 'Não foi possível alterar a senha',
       });
     } finally {
       setIsUpdating(false);
     }
   };
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('player-auth', {
+        body: {
+          action: 'update-profile',
+          companyId,
+          playerId: player?.id,
+          name: editName,
+          city: editCity,
+          phone: editPhone,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data?.player as any;
+    },
+    onSuccess: (updated) => {
+      updatePlayer({
+        name: updated.name,
+        city: updated.city,
+        phone: updated.phone,
+      });
+      toast({ title: 'Perfil atualizado!' });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar perfil',
+        description: err?.message ?? 'Tente novamente.',
+      });
+    },
+  });
 
   if (tenantLoading || playerLoading) {
     return <LoadingState fullScreen message="Carregando..." />;
@@ -282,7 +351,7 @@ export default function MinhaConta() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="bilhetes" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="bilhetes" className="gap-2">
               <Ticket className="h-4 w-4 hidden sm:block" />
@@ -330,6 +399,30 @@ export default function MinhaConta() {
                           </div>
                           {getStatusBadge(ticket.status || 'active')}
                         </div>
+                        <div className="flex flex-wrap items-center gap-2 mb-3 text-sm text-muted-foreground">
+                          <Badge variant="outline">
+                            Acertos: {(ticket as any).ranking?.hits ?? 0}
+                          </Badge>
+                          <Badge variant="outline">
+                            Faltam: {(ticket as any).ranking?.missing ?? '-'}
+                          </Badge>
+                          {(ticket as any).ranking?.rank_position && (
+                            <Badge variant="outline">
+                              Rank: {(ticket as any).ranking.rank_position}
+                            </Badge>
+                          )}
+                          {(ticket as any).raffle?.current_draw_count !== null && (
+                            <Badge variant="secondary">
+                              Rodadas: {(ticket as any).raffle?.current_draw_count ?? 0}
+                            </Badge>
+                          )}
+                          <Button variant="outline" size="sm" asChild className="ml-auto">
+                            <Link to={`/empresa/${slug}/sorteio/${(ticket as any).raffle?.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Acompanhar
+                            </Link>
+                          </Button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {((ticket as any).ticket_numbers || []).map((tn: any) => (
                             <Badge key={tn.number} variant="outline" className="font-mono">
@@ -367,6 +460,25 @@ export default function MinhaConta() {
                             </p>
                           </div>
                           {getStatusBadge(ticket.status || '')}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mb-3 text-sm text-muted-foreground">
+                          <Badge variant="outline">
+                            Acertos: {(ticket as any).ranking?.hits ?? 0}
+                          </Badge>
+                          <Badge variant="outline">
+                            Faltam: {(ticket as any).ranking?.missing ?? '-'}
+                          </Badge>
+                          {(ticket as any).ranking?.rank_position && (
+                            <Badge variant="outline">
+                              Rank: {(ticket as any).ranking.rank_position}
+                            </Badge>
+                          )}
+                          <Button variant="outline" size="sm" asChild className="ml-auto">
+                            <Link to={`/empresa/${slug}/sorteio/${(ticket as any).raffle?.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver sorteio
+                            </Link>
+                          </Button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {((ticket as any).ticket_numbers || []).map((tn: any) => (
@@ -473,20 +585,43 @@ export default function MinhaConta() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-muted-foreground">Nome</Label>
-                    <p className="font-medium">{player.name}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-name">Nome</Label>
+                    <Input
+                      id="profile-name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label className="text-muted-foreground">CPF</Label>
                     <p className="font-medium">***.***.***-{player.cpf_last4}</p>
                   </div>
-                  {player.city && (
-                    <div>
-                      <Label className="text-muted-foreground">Cidade</Label>
-                      <p className="font-medium">{player.city}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-city">Cidade</Label>
+                      <Input
+                        id="profile-city"
+                        value={editCity}
+                        onChange={(e) => setEditCity(e.target.value)}
+                      />
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-phone">Telefone</Label>
+                      <Input
+                        id="profile-phone"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => updateProfileMutation.mutate()}
+                    disabled={updateProfileMutation.isPending || !editName || editName.trim().length < 3}
+                    className="w-full"
+                  >
+                    {updateProfileMutation.isPending ? 'Salvando...' : 'Salvar Perfil'}
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -499,6 +634,16 @@ export default function MinhaConta() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current-password">Senha Atual</Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="new-password">Nova Senha</Label>
                     <Input
@@ -521,7 +666,7 @@ export default function MinhaConta() {
                   </div>
                   <Button 
                     onClick={handlePasswordChange} 
-                    disabled={isUpdating || !newPassword || !confirmPassword}
+                    disabled={isUpdating || !currentPassword || !newPassword || !confirmPassword}
                     className="w-full"
                   >
                     {isUpdating ? 'Alterando...' : 'Alterar Senha'}

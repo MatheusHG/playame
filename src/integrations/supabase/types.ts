@@ -522,8 +522,12 @@ export type Database = {
           amount: number
           company_id: string
           created_at: string
+          discount_amount: number | null
+          discount_percent: number | null
+          discount_rule_id: string | null
           id: string
           net_amount: number
+          original_amount: number | null
           player_id: string
           processed_at: string | null
           raffle_id: string
@@ -538,8 +542,12 @@ export type Database = {
           amount: number
           company_id: string
           created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          discount_rule_id?: string | null
           id?: string
           net_amount: number
+          original_amount?: number | null
           player_id: string
           processed_at?: string | null
           raffle_id: string
@@ -554,8 +562,12 @@ export type Database = {
           amount?: number
           company_id?: string
           created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          discount_rule_id?: string | null
           id?: string
           net_amount?: number
+          original_amount?: number | null
           player_id?: string
           processed_at?: string | null
           raffle_id?: string
@@ -592,6 +604,13 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_discount_rule_id_fkey"
+            columns: ["discount_rule_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_discounts"
             referencedColumns: ["id"]
           },
         ]
@@ -887,6 +906,50 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raffle_discounts: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          min_quantity: number
+          raffle_id: string
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          min_quantity: number
+          raffle_id: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          min_quantity?: number
+          raffle_id?: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffle_discounts_raffle_id_fkey"
+            columns: ["raffle_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
             referencedColumns: ["id"]
           },
         ]

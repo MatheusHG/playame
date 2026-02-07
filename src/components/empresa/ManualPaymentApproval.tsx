@@ -29,38 +29,19 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
-  const [actionCompleted, setActionCompleted] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const approveMutation = useMutation({
     mutationFn: async () => {
-      // Update payment status
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .update({ 
-          status: 'succeeded',
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', payment.id);
-
-      if (paymentError) throw paymentError;
-
-      // Update ticket status
-      const { error: ticketError } = await supabase
-        .from('tickets')
-        .update({ 
-          status: 'active',
-          purchased_at: new Date().toISOString()
-        })
-        .eq('id', payment.ticket_id);
-
-      if (ticketError) throw ticketError;
-
+      const { data, error } = await supabase.functions.invoke('manual-payment-action', {
+        body: { action: 'approve', paymentId: payment.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return true;
     },
     onSuccess: () => {
-      setActionCompleted(true);
       // Invalidate all payment-related queries immediately
       queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
@@ -77,36 +58,21 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível aprovar o pagamento.',
+        description: error instanceof Error ? error.message : 'Não foi possível aprovar o pagamento.',
       });
     },
   });
 
   const rejectMutation = useMutation({
     mutationFn: async () => {
-      // Update payment status
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .update({ 
-          status: 'failed',
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', payment.id);
-
-      if (paymentError) throw paymentError;
-
-      // Update ticket status
-      const { error: ticketError } = await supabase
-        .from('tickets')
-        .update({ status: 'cancelled' })
-        .eq('id', payment.ticket_id);
-
-      if (ticketError) throw ticketError;
-
+      const { data, error } = await supabase.functions.invoke('manual-payment-action', {
+        body: { action: 'reject', paymentId: payment.id, reason: reason || undefined },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return true;
     },
     onSuccess: () => {
-      setActionCompleted(true);
       // Invalidate all payment-related queries immediately
       queryClient.invalidateQueries({ queryKey: ['company-payments'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['payments-list'], exact: false });
@@ -124,13 +90,13 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível rejeitar o pagamento.',
+        description: error instanceof Error ? error.message : 'Não foi possível rejeitar o pagamento.',
       });
     },
   });
 
-  // Hide buttons if action was completed or status is no longer pending
-  if (actionCompleted || (payment.status !== 'pending' && payment.status !== 'processing')) {
+  // Hide buttons if status is no longer pending
+  if (payment.status !== 'pending' && payment.status !== 'processing') {
     return null;
   }
 

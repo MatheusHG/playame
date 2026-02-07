@@ -69,6 +69,20 @@ function calculateCommissions(
   return result;
 }
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+type RaffleDiscountRow = {
+  id: string;
+  raffle_id: string;
+  min_quantity: number;
+  discount_percent: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -211,8 +225,45 @@ serve(async (req) => {
 
     // Calculate amounts with commissions
     const ticketPrice = Number(raffle.ticket_price);
-    const totalAmount = ticketPrice * quantity;
-    const commissionCalc = calculateCommissions(totalAmount, superAdminFeePercent, manager, cambista);
+    const originalAmount = round2(ticketPrice * quantity);
+
+    // Fetch discount rules and pick the best one for this quantity
+    const now = new Date();
+    const { data: discountRows, error: discountError } = await supabase
+      .from("raffle_discounts")
+      .select("id, raffle_id, min_quantity, discount_percent, is_active, starts_at, ends_at")
+      .eq("raffle_id", raffleId)
+      .eq("is_active", true)
+      .order("min_quantity", { ascending: false });
+
+    if (discountError) {
+      console.error("Error fetching raffle discounts:", discountError);
+    }
+
+    const discounts = ((discountRows || []) as RaffleDiscountRow[]).filter((d) => {
+      if (!d.is_active) return false;
+      const startsOk = !d.starts_at || now >= new Date(d.starts_at);
+      const endsOk = !d.ends_at || now <= new Date(d.ends_at);
+      return startsOk && endsOk;
+    });
+
+    const bestDiscount = discounts.find((d) => quantity >= Number(d.min_quantity));
+    const discountPercent = bestDiscount ? Number(bestDiscount.discount_percent || 0) : 0;
+    const discountAmount = round2(originalAmount * (discountPercent / 100));
+    const finalAmount = round2(originalAmount - discountAmount);
+
+    if (!finalAmount || finalAmount <= 0) {
+      throw new Error("Valor inválido após desconto");
+    }
+
+    const commissionCalc = calculateCommissions(finalAmount, superAdminFeePercent, manager, cambista);
+    commissionCalc.ratesSnapshot.discount_percent = discountPercent;
+    commissionCalc.ratesSnapshot.discount_amount = discountAmount;
+    commissionCalc.ratesSnapshot.original_amount = originalAmount;
+    if (bestDiscount?.id) {
+      commissionCalc.ratesSnapshot.discount_rule_id = bestDiscount.id;
+      commissionCalc.ratesSnapshot.discount_min_quantity = bestDiscount.min_quantity;
+    }
 
     // Create ticket(s)
     const tickets = [];
@@ -285,7 +336,11 @@ serve(async (req) => {
         company_id: companyId,
         player_id: playerId,
         raffle_id: raffleId,
-        amount: totalAmount,
+        amount: finalAmount,
+        original_amount: originalAmount,
+        discount_percent: discountPercent,
+        discount_amount: discountAmount,
+        discount_rule_id: bestDiscount?.id || null,
         admin_fee: commissionCalc.superAdminAmount,
         net_amount: commissionCalc.companyNetAmount,
         status: "pending",
@@ -330,12 +385,15 @@ serve(async (req) => {
           price_data: {
             currency: "brl",
             product_data: {
-              name: `Cartela - ${raffle.name}`,
-              description: `${quantity} cartela(s) com ${raffle.numbers_per_ticket} números cada`,
+              name: `${quantity} cartela(s) - ${raffle.name}`,
+              description:
+                discountPercent > 0
+                  ? `Inclui desconto de ${discountPercent}%`
+                  : `${quantity} cartela(s) com ${raffle.numbers_per_ticket} números cada`,
             },
-            unit_amount: Math.round(ticketPrice * 100), // Convert to cents
+            unit_amount: Math.round(finalAmount * 100), // Convert to cents
           },
-          quantity,
+          quantity: 1,
         },
       ],
       mode: "payment",
@@ -348,6 +406,9 @@ serve(async (req) => {
         raffle_id: raffleId,
         ticket_ids: tickets.map(t => t.id).join(","),
         affiliate_id: affiliateId || "",
+        discount_percent: String(discountPercent),
+        discount_amount: String(discountAmount),
+        original_amount: String(originalAmount),
       },
     });
 

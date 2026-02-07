@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Network,
+  ExternalLink,
 } from 'lucide-react';
 import { useState } from 'react';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -30,6 +31,7 @@ export function EmpresaLayout({ children, title, description }: EmpresaLayoutPro
   const { company, loading, setCompanySlug } = useTenant();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const publicCompanyIdentifier = company?.id ?? slug ?? company?.slug;
 
   useEffect(() => {
     if (slug) {
@@ -158,10 +160,21 @@ export function EmpresaLayout({ children, title, description }: EmpresaLayoutPro
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold">{title}</h1>
-            {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="flex flex-1 items-center justify-between gap-4 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold truncate">{title}</h1>
+              {description && (
+                <p className="text-sm text-muted-foreground truncate">{description}</p>
+              )}
+            </div>
+
+            {publicCompanyIdentifier && (
+              <Button asChild variant="outline" size="sm">
+                <a href={`/empresa/${publicCompanyIdentifier}`} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Abrir site
+                </a>
+              </Button>
             )}
           </div>
         </header>

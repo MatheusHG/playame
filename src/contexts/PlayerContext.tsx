@@ -6,6 +6,7 @@ interface Player {
   name: string;
   cpf_last4: string;
   city: string | null;
+  phone?: string | null;
 }
 
 interface PlayerContextType {
@@ -15,6 +16,7 @@ interface PlayerContextType {
   isLoading: boolean;
   login: (companyId: string, cpf: string, password: string) => Promise<{ error?: string }>;
   register: (companyId: string, data: { cpf: string; password: string; name: string; city?: string; phone?: string }) => Promise<{ error?: string }>;
+  updatePlayer: (patch: Partial<Player>) => void;
   logout: () => void;
 }
 
@@ -93,6 +95,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updatePlayer = useCallback((patch: Partial<Player>) => {
+    setPlayer((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              ...parsed,
+              player: next,
+            })
+          );
+        }
+      } catch {
+        // ignore storage issues
+      }
+      return next;
+    });
+  }, []);
+
   const logout = useCallback(() => {
     setPlayer(null);
     setCompanyId(null);
@@ -107,6 +132,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       login,
       register,
+      updatePlayer,
       logout,
     }}>
       {children}

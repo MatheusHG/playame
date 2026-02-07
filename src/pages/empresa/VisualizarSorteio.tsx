@@ -8,6 +8,7 @@ import { DrawBatchManager } from '@/components/empresa/DrawBatchManager';
 import { TicketsList } from '@/components/empresa/TicketsList';
 import { RankingTable } from '@/components/empresa/RankingTable';
 import { SettlementDialog } from '@/components/empresa/SettlementDialog';
+import { RaffleDiscountsManager } from '@/components/empresa/RaffleDiscountsManager';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import { useRaffle, useRaffleMutations, usePrizeTierMutations } from '@/hooks/us
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 type RaffleStatus = Database['public']['Enums']['raffle_status'];
 
@@ -31,6 +33,7 @@ export default function VisualizarSorteio() {
   const { slug, id } = useParams<{ slug: string; id: string }>();
   const navigate = useNavigate();
   const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { isAdminEmpresa } = useAuth();
   const { data: raffle, isLoading } = useRaffle(id);
   const { changeStatus } = useRaffleMutations(company?.id);
   const { savePrizeTiers } = usePrizeTierMutations(id);
@@ -62,6 +65,7 @@ export default function VisualizarSorteio() {
   const isPaused = status === 'paused';
   const isDraft = status === 'draft';
   const isFinished = status === 'finished';
+  const canManage = isAdminEmpresa(company?.id);
 
   return (
     <EmpresaLayout title={raffle.name} description={raffle.description || 'Detalhes do sorteio'}>
@@ -173,6 +177,7 @@ export default function VisualizarSorteio() {
         <TabsList>
           <TabsTrigger value="rodadas">Rodadas</TabsTrigger>
           <TabsTrigger value="faixas">Faixas de Prêmio</TabsTrigger>
+          {canManage && <TabsTrigger value="descontos">Descontos</TabsTrigger>}
           <TabsTrigger value="cartelas">Cartelas</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
@@ -194,6 +199,12 @@ export default function VisualizarSorteio() {
             maxHits={raffle.numbers_per_ticket}
           />
         </TabsContent>
+
+        {canManage && (
+          <TabsContent value="descontos">
+            <RaffleDiscountsManager raffleId={raffle.id} />
+          </TabsContent>
+        )}
 
         <TabsContent value="cartelas">
           <TicketsList raffleId={raffle.id} />
