@@ -8,7 +8,6 @@ import { DrawBatchManager } from '@/components/empresa/DrawBatchManager';
 import { TicketsList } from '@/components/empresa/TicketsList';
 import { RankingTable } from '@/components/empresa/RankingTable';
 import { SettlementDialog } from '@/components/empresa/SettlementDialog';
-import { RaffleDiscountsManager } from '@/components/empresa/RaffleDiscountsManager';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,7 +176,6 @@ export default function VisualizarSorteio() {
         <TabsList>
           <TabsTrigger value="rodadas">Rodadas</TabsTrigger>
           <TabsTrigger value="faixas">Faixas de Prêmio</TabsTrigger>
-          {canManage && <TabsTrigger value="descontos">Descontos</TabsTrigger>}
           <TabsTrigger value="cartelas">Cartelas</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
@@ -199,12 +197,6 @@ export default function VisualizarSorteio() {
             maxHits={raffle.numbers_per_ticket}
           />
         </TabsContent>
-
-        {canManage && (
-          <TabsContent value="descontos">
-            <RaffleDiscountsManager raffleId={raffle.id} />
-          </TabsContent>
-        )}
 
         <TabsContent value="cartelas">
           <TicketsList raffleId={raffle.id} />

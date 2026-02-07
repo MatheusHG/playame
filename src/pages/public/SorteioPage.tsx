@@ -24,8 +24,6 @@ type Raffle = Database['public']['Tables']['raffles']['Row'] & {
   prize_tiers: Database['public']['Tables']['prize_tiers']['Row'][];
 };
 
-type RaffleDiscount = Database['public']['Tables']['raffle_discounts']['Row'];
-
 interface TicketSelection {
   id: number;
   numbers: number[];
@@ -281,38 +279,8 @@ export default function SorteioPage() {
   const allTicketsComplete = raffle ? tickets.every(t => t.numbers.length === raffle.numbers_per_ticket) : false;
   const ticketPrice = raffle ? Number(raffle.ticket_price) : 0;
 
-  const { data: raffleDiscounts = [] } = useQuery({
-    queryKey: ['raffle-discounts-public', raffleId],
-    enabled: !!raffleId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('raffle_discounts')
-        .select('*')
-        .eq('raffle_id', raffleId!)
-        .eq('is_active', true)
-        .order('min_quantity', { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as RaffleDiscount[];
-    },
-  });
-
   const quantity = tickets.length;
-  const originalTotalPrice = ticketPrice * quantity;
-  const appliedDiscount = useMemo(() => {
-    if (!raffleDiscounts?.length) return null;
-    const now = new Date();
-    const valid = raffleDiscounts.filter((d) => {
-      const startsOk = !d.starts_at || now >= new Date(d.starts_at);
-      const endsOk = !d.ends_at || now <= new Date(d.ends_at);
-      return startsOk && endsOk && d.is_active;
-    });
-    return valid.find((d) => quantity >= Number(d.min_quantity)) || null;
-  }, [raffleDiscounts, quantity]);
-
-  const discountPercent = appliedDiscount ? Number(appliedDiscount.discount_percent) : 0;
-  const discountAmount = originalTotalPrice * (discountPercent / 100);
-  const totalPrice = originalTotalPrice - discountAmount;
+  const totalPrice = ticketPrice * quantity;
 
   const handlePurchase = async () => {
     if (!player || !raffle) return;
@@ -605,14 +573,8 @@ export default function SorteioPage() {
                 <div className="w-full bg-muted rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                    <span>R$ {originalTotalPrice.toFixed(2)}</span>
+                    <span>R$ {totalPrice.toFixed(2)}</span>
                   </div>
-                  {discountPercent > 0 && (
-                    <div className="flex justify-between text-sm text-green-700">
-                      <span>Desconto ({discountPercent}%)</span>
-                      <span>- R$ {discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
                     <span>Total</span>
                     <span>R$ {totalPrice.toFixed(2)}</span>
@@ -735,14 +697,8 @@ export default function SorteioPage() {
             <div className="bg-muted rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                    <span>R$ {originalTotalPrice.toFixed(2)}</span>
+                <span>R$ {totalPrice.toFixed(2)}</span>
               </div>
-                  {discountPercent > 0 && (
-                    <div className="flex justify-between text-sm text-green-700">
-                      <span>Desconto ({discountPercent}%)</span>
-                      <span>- R$ {discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total</span>
                 <span>R$ {totalPrice.toFixed(2)}</span>
