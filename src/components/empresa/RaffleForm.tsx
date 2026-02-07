@@ -26,6 +26,7 @@ const raffleSchema = z.object({
   prize_mode: z.enum(['FIXED', 'FIXED_PLUS_PERCENT', 'PERCENT_ONLY'] as const),
   fixed_prize_value: z.coerce.number().min(0),
   prize_percent_of_sales: z.coerce.number().min(0).max(100),
+  company_profit_percent: z.coerce.number().min(0).max(100, 'Máximo 100%'),
   status: z.enum(['draft', 'active', 'paused', 'finished'] as const),
   scheduled_at: z.string().optional(),
   image_url: z.string().optional().nullable(),
@@ -69,6 +70,7 @@ export function RaffleForm({ companyId, defaultValues, onSubmit, isLoading, subm
       prize_mode: 'PERCENT_ONLY',
       fixed_prize_value: 0,
       prize_percent_of_sales: 100,
+      company_profit_percent: 0,
       status: 'draft',
       image_url: null,
       ...defaultValues,
@@ -272,6 +274,22 @@ export function RaffleForm({ companyId, defaultValues, onSubmit, isLoading, subm
                 <Input id="prize_percent_of_sales" type="number" step="0.01" {...register('prize_percent_of_sales')} />
               </div>
             )}
+          </div>
+
+          <div className="space-y-2 pt-4 border-t">
+            <Label htmlFor="company_profit_percent">Taxa da Empresa (%)</Label>
+            <Input 
+              id="company_profit_percent" 
+              type="number" 
+              step="0.01" 
+              min="0" 
+              max="100" 
+              {...register('company_profit_percent')} 
+            />
+            {errors.company_profit_percent && <p className="text-sm text-destructive">{errors.company_profit_percent.message}</p>}
+            <p className="text-xs text-muted-foreground">
+              Percentual do valor líquido (após taxa do whitelabel) que você retém. O restante vai para o prêmio.
+            </p>
           </div>
         </CardContent>
       </Card>

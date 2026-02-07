@@ -817,6 +817,7 @@ export type Database = {
       raffles: {
         Row: {
           company_id: string
+          company_profit_percent: number
           created_at: string
           current_draw_count: number | null
           deleted_at: string | null
@@ -839,6 +840,7 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          company_profit_percent?: number
           created_at?: string
           current_draw_count?: number | null
           deleted_at?: string | null
@@ -861,6 +863,7 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          company_profit_percent?: number
           created_at?: string
           current_draw_count?: number | null
           deleted_at?: string | null

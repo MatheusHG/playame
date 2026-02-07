@@ -32,6 +32,7 @@ export default function NovoSorteio() {
         prize_mode: data.prize_mode,
         fixed_prize_value: data.fixed_prize_value,
         prize_percent_of_sales: data.prize_percent_of_sales,
+        company_profit_percent: data.company_profit_percent,
         status: data.status,
         scheduled_at: data.scheduled_at || null,
         image_url: data.image_url || null,
