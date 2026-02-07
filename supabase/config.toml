@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.create-affiliate-user]
+verify_jwt = true
+
+[functions.manual-payment-action]
+verify_jwt = true
