@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Network,
+  Webhook,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Afiliados', href: '/super-admin/afiliados', icon: Network },
   { name: 'Financeiro', href: '/super-admin/financeiro', icon: DollarSign },
   { name: 'Auditoria', href: '/super-admin/auditoria', icon: FileText },
+  { name: 'Webhook Logs', href: '/super-admin/webhook-logs', icon: Webhook },
 ];
 
 export function SuperAdminLayout({ children, title, description }: SuperAdminLayoutProps) {

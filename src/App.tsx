@@ -26,6 +26,7 @@ import SuperAdminUsuarios from "./pages/super-admin/Usuarios";
 import SuperAdminFinanceiro from "./pages/super-admin/Financeiro";
 import SuperAdminAuditoria from "./pages/super-admin/Auditoria";
 import SuperAdminAfiliados from "./pages/super-admin/Afiliados";
+import SuperAdminWebhookLogs from "./pages/super-admin/WebhookLogs";
 
 // Company Admin Pages
 import EmpresaDashboard from "./pages/empresa/Dashboard";
@@ -139,6 +140,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="SUPER_ADMIN">
                     <SuperAdminAuditoria />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/webhook-logs"
+                element={
+                  <ProtectedRoute requiredRole="SUPER_ADMIN">
+                    <SuperAdminWebhookLogs />
                   </ProtectedRoute>
                 }
               />
