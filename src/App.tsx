@@ -39,6 +39,7 @@ import EmpresaAfiliados from "./pages/empresa/Afiliados";
 import AfiliadoDetalhe from "./pages/empresa/AfiliadoDetalhe";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
+import EmpresaWebhookLogs from "./pages/empresa/WebhookLogs";
 
 // Affiliate Portal Pages
 import AffiliateLogin from "./pages/afiliado/Login";
@@ -223,6 +224,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="ADMIN_EMPRESA">
                     <EmpresaFinanceiro />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/webhook-logs"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <EmpresaWebhookLogs />
                   </ProtectedRoute>
                 }
               />

@@ -15,6 +15,7 @@ import {
   X,
   Network,
   ExternalLink,
+  Webhook,
 } from 'lucide-react';
 import { useState } from 'react';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -49,6 +50,7 @@ export function EmpresaLayout({ children, title, description }: EmpresaLayoutPro
     { name: 'Jogadores', href: `/empresa/${slug}/jogadores`, icon: Users, show: true },
     { name: 'Afiliados', href: `/empresa/${slug}/afiliados`, icon: Network, show: isAdmin },
     { name: 'Financeiro', href: `/empresa/${slug}/financeiro`, icon: DollarSign, show: isAdmin },
+    { name: 'Webhook Logs', href: `/empresa/${slug}/webhook-logs`, icon: Webhook, show: isAdmin },
     { name: 'Configurações', href: `/empresa/${slug}/configuracoes`, icon: Settings, show: isAdmin },
   ].filter(item => item.show);
 
