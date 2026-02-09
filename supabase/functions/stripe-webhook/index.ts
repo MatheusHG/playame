@@ -100,6 +100,11 @@ serve(async (req) => {
 
     console.log(`Processing webhook event: ${event.type} for company: ${companyId}`);
 
+    const startTime = Date.now();
+    let logStatus = "processed";
+    let logError: string | null = null;
+
+    try {
     // Handle the event
     switch (event.type) {
       case "checkout.session.completed": {
@@ -232,6 +237,30 @@ serve(async (req) => {
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
+    }
+    } catch (processingError) {
+      logStatus = "error";
+      logError = processingError instanceof Error ? processingError.message : String(processingError);
+      console.error("Event processing error:", logError);
+    }
+
+    // Log the webhook event
+    const processingTime = Date.now() - startTime;
+    await supabase.from("webhook_logs").insert({
+      company_id: companyId,
+      event_type: event.type,
+      event_id: event.id,
+      payload: rawEvent as Record<string, unknown>,
+      status: logStatus,
+      error_message: logError,
+      processing_time_ms: processingTime,
+    });
+
+    if (logStatus === "error") {
+      return new Response(
+        JSON.stringify({ error: logError }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
 
     return new Response(
