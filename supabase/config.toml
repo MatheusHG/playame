@@ -4,7 +4,7 @@ project_id = "ughbqtlxgfybawixlnir"
 verify_jwt = false
 
 [functions.manage-stripe-keys]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-ticket-checkout]
 verify_jwt = false
@@ -13,7 +13,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-affiliate-user]
-verify_jwt = true
+verify_jwt = false
 
 [functions.manual-payment-action]
 verify_jwt = false
