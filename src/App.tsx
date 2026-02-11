@@ -10,7 +10,6 @@ import { AffiliateProvider } from "@/contexts/AffiliateContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/public/LandingPage";
@@ -66,7 +65,7 @@ const App = () => (
               <BrowserRouter>
                 <Routes>
                   {/* Public routes */}
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<Navigate to="/auth" replace />} />
                   <Route path="/auth" element={<Auth />} />
                   
                   {/* Public Company Landing Page */}
