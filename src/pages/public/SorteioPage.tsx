@@ -45,6 +45,9 @@ export default function SorteioPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [affiliateId, setAffiliateId] = useState<string | null>(null);
   const promptedTicketIdsRef = useRef<Set<number>>(new Set());
+  const [pendingPaymentDialogOpen, setPendingPaymentDialogOpen] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<{ id: string; amount: number } | null>(null);
+  const [isResumingPayment, setIsResumingPayment] = useState(false);
 
   // Capture ref from URL and store in localStorage
   useEffect(() => {
@@ -101,6 +104,53 @@ export default function SorteioPage() {
   }, [slug, setCompanySlug]);
 
   useCompanyBranding();
+
+  // Check for pending payments for this raffle
+  useEffect(() => {
+    if (!player?.id || !raffleId || !company?.id) return;
+
+    const checkPendingPayments = async () => {
+      const { data } = await supabase
+        .from('payments')
+        .select('id, amount')
+        .eq('player_id', player.id)
+        .eq('raffle_id', raffleId)
+        .eq('company_id', company.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setPendingPayment({ id: data[0].id, amount: Number(data[0].amount) });
+        setPendingPaymentDialogOpen(true);
+      }
+    };
+
+    checkPendingPayments();
+  }, [player?.id, raffleId, company?.id]);
+
+  const handleResumePayment = async () => {
+    if (!pendingPayment || !player) return;
+    setIsResumingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resume-checkout', {
+        body: { paymentId: pendingPayment.id, playerId: player.id },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao retomar pagamento',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+      });
+    } finally {
+      setIsResumingPayment(false);
+    }
+  };
 
   // Fetch raffle details
   const { data: raffle, isLoading } = useQuery({
@@ -752,6 +802,39 @@ export default function SorteioPage() {
               }}
             >
               Adicionar 1 cartela
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pending Payment Dialog */}
+      <Dialog open={pendingPaymentDialogOpen} onOpenChange={setPendingPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Pagamento Pendente
+            </DialogTitle>
+            <DialogDescription>
+              Você tem um pagamento pendente de R$ {pendingPayment?.amount?.toFixed(2)} para este sorteio. Deseja concluir o pagamento?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingPaymentDialogOpen(false)}>
+              Agora não
+            </Button>
+            <Button onClick={handleResumePayment} disabled={isResumingPayment}>
+              {isResumingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Abrindo...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Concluir Pagamento
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

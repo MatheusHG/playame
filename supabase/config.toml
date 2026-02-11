@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.manual-payment-action]
 verify_jwt = false
+
+[functions.resume-checkout]
+verify_jwt = false
