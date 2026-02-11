@@ -24,7 +24,9 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Eye
+  Eye,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -48,6 +50,7 @@ export default function MinhaConta() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState<'bilhetes' | 'transacoes' | 'sorteios' | 'configuracoes'>('bilhetes');
+  const [resumingPaymentId, setResumingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (player) {
@@ -237,6 +240,29 @@ export default function MinhaConta() {
       });
     },
   });
+
+  const handleResumePayment = async (paymentId: string) => {
+    if (!player) return;
+    setResumingPaymentId(paymentId);
+    try {
+      const { data, error } = await supabase.functions.invoke('resume-checkout', {
+        body: { paymentId, playerId: player.id },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao retomar pagamento',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+      });
+    } finally {
+      setResumingPaymentId(null);
+    }
+  };
 
   if (tenantLoading || playerLoading) {
     return <LoadingState fullScreen message="Carregando..." />;
@@ -518,11 +544,33 @@ export default function MinhaConta() {
                               {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                             </p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right space-y-1">
                             <p className="font-mono font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
                             {getPaymentStatusBadge(payment.status || 'pending')}
                           </div>
                         </div>
+                        {payment.status === 'pending' && (
+                          <div className="mt-3 pt-3 border-t">
+                            <Button
+                              size="sm"
+                              onClick={() => handleResumePayment(payment.id)}
+                              disabled={resumingPaymentId === payment.id}
+                              className="w-full sm:w-auto"
+                            >
+                              {resumingPaymentId === payment.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Abrindo...
+                                </>
+                              ) : (
+                                <>
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Concluir Pagamento
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
