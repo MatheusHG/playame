@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Loader2 } from 'lucide-react';
@@ -23,7 +22,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   
-  const { signIn, signUp, user, loading, isSuperAdmin, roles } = useAuth();
+  const { signIn, user, loading, isSuperAdmin, roles } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -120,31 +119,6 @@ export default function Auth() {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    const { error } = await signUp(email, password);
-    setIsLoading(false);
-
-    if (error) {
-      const message = error.message.includes('already registered')
-        ? 'Este email já está cadastrado'
-        : error.message;
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao criar conta',
-        description: message,
-      });
-    } else {
-      toast({
-        title: 'Conta criada!',
-        description: 'Verifique seu email para confirmar o cadastro.',
-      });
-    }
-  };
-
   if (loading) {
     return <LoadingState fullScreen message="Carregando..." />;
   }
@@ -155,98 +129,47 @@ export default function Auth() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">PlayAME</CardTitle>
           <CardDescription>
-            Faça login ou crie sua conta para continuar
+            Faça login para continuar
           </CardDescription>
         </CardHeader>
-        
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mx-6" style={{ width: 'calc(100% - 48px)' }}>
-            <TabsTrigger value="login">Entrar</TabsTrigger>
-            <TabsTrigger value="register">Cadastrar</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="login">
-            <form onSubmit={handleSignIn}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Entrar
-                </Button>
-              </CardFooter>
-            </form>
-          </TabsContent>
-          
-          <TabsContent value="register">
-            <form onSubmit={handleSignUp}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
-                  <Input
-                    id="register-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Senha</Label>
-                  <Input
-                    id="register-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Criar conta
-                </Button>
-              </CardFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
+        <form onSubmit={handleSignIn}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Senha</Label>
+              <Input
+                id="login-password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Entrar
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );
