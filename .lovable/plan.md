@@ -1,5 +1,5 @@
 
-# 🎰 Plataforma SaaS Whitelabel de Bolões Numéricos
+# 🎰 Plataforma SaaS Whitelabel
 **Sistema Multi-Tenant Completo para Produção Comercial**
 
 ---
