@@ -175,11 +175,11 @@ export default function LandingPage() {
               </>
             ) : (
               <>
-                <Button variant="secondary" size="sm" className="bg-white/20 text-white hover:bg-white/30 border-0" onClick={() => openAuth('login')}>
+                <Button variant="outline" size="sm" className="bg-transparent text-white border-white hover:bg-white/10 hover:text-white" onClick={() => openAuth('login')}>
                   <LogIn className="h-4 w-4 mr-2" />
                   Entrar
                 </Button>
-                <Button variant="outline" size="sm" className="bg-transparent text-white border-white hover:bg-white/10 hover:text-white" onClick={() => openAuth('register')}>
+                <Button variant="outline" size="sm" className="bg-white text-black border-white hover:bg-white/90 hover:text-black" onClick={() => openAuth('register')}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Cadastrar
                 </Button>
