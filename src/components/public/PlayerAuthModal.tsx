@@ -46,6 +46,14 @@ function formatCPF(value: string): string {
   return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9, 11)}`;
 }
 
+/** Máscara (00) 00000-0000 ou (00) 0000-0000, só dígitos. */
+function formatPhone(value: string): string {
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+  if (numbers.length <= 2) return numbers ? `(${numbers}` : '';
+  if (numbers.length <= 6) return numbers.replace(/(\d{2})(\d{0,4})/, '($1) $2');
+  return numbers.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+}
+
 export function PlayerAuthModal({ open, onOpenChange, mode, onModeChange, companyId }: PlayerAuthModalProps) {
   const { login, register } = usePlayer();
   const { toast } = useToast();
@@ -77,12 +85,13 @@ export function PlayerAuthModal({ open, onOpenChange, mode, onModeChange, compan
 
   const handleRegister = async (data: RegisterData) => {
     setIsLoading(true);
+    const phoneDigits = data.phone?.replace(/\D/g, '') || undefined;
     const result = await register(companyId, {
       cpf: data.cpf,
       password: data.password,
       name: data.name,
       city: data.city,
-      phone: data.phone,
+      phone: phoneDigits && phoneDigits.length >= 10 ? phoneDigits : undefined,
     });
     setIsLoading(false);
 
@@ -186,7 +195,13 @@ export function PlayerAuthModal({ open, onOpenChange, mode, onModeChange, compan
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input id="phone" {...registerForm.register('phone')} />
+                <Input
+                  id="phone"
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                  value={registerForm.watch('phone') ?? ''}
+                  onChange={(e) => registerForm.setValue('phone', formatPhone(e.target.value))}
+                />
               </div>
             </div>
 
