@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Clock, DollarSign, Users, Star, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { Trophy, Clock, Wallet, Users, Star, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
@@ -211,7 +211,7 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap justify-center gap-6 mb-8">
             <div className="bg-white/20 rounded-xl px-6 py-4">
-              <DollarSign className="h-8 w-8 mx-auto mb-2" />
+              <Wallet className="h-8 w-8 mx-auto mb-2" />
               <p className="text-3xl font-bold">
                 {totalPrize > 0 ? `R$ ${totalPrize.toLocaleString('pt-BR')}` : 'A definir'}
               </p>
