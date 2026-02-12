@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,9 @@ interface RafflePublicCardProps {
 }
 
 export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps) {
+  const navigate = useNavigate();
   const [countdown, setCountdown] = useState<{ text: string; isOpen: boolean }>({ text: '', isOpen: true });
+  const detailUrl = `/empresa/${companySlug}/sorteio/${raffle.id}`;
 
   const ticketPrice = Number(raffle.ticket_price);
 
@@ -98,7 +100,10 @@ export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps)
   }, [raffle.scheduled_at]);
 
   return (
-    <Card className={`flex flex-col h-full transition-shadow overflow-hidden ${countdown.isOpen ? 'hover:shadow-lg' : 'opacity-90'}`}>
+    <Card
+      className={`flex flex-col h-full transition-shadow overflow-hidden cursor-pointer ${countdown.isOpen ? 'hover:shadow-lg' : 'opacity-90'}`}
+      onClick={() => navigate(detailUrl)}
+    >
       {/* Raffle Image */}
       {raffle.image_url && (
         <div className="aspect-video relative overflow-hidden">
@@ -216,10 +221,10 @@ export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps)
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-2">
+      <CardFooter className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
         {countdown.isOpen ? (
           <Button className="w-full" size="lg" asChild>
-            <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
+            <Link to={detailUrl}>
               <ShoppingCart className="mr-2 h-5 w-5" />
               Comprar Cartela
             </Link>
@@ -231,7 +236,7 @@ export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps)
               Aguardando Abertura
             </Button>
             <Button variant="outline" className="w-full" asChild>
-              <Link to={`/empresa/${companySlug}/sorteio/${raffle.id}`}>
+              <Link to={detailUrl}>
                 <Eye className="mr-2 h-4 w-4" />
                 Prévia do Sorteio
               </Link>
