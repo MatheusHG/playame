@@ -34,6 +34,7 @@ import NovoSorteio from "./pages/empresa/NovoSorteio";
 import EditarSorteio from "./pages/empresa/EditarSorteio";
 import VisualizarSorteio from "./pages/empresa/VisualizarSorteio";
 import EmpresaJogadores from "./pages/empresa/Jogadores";
+import JogadorDetalhe from "./pages/empresa/JogadorDetalhe";
 import EmpresaAfiliados from "./pages/empresa/Afiliados";
 import AfiliadoDetalhe from "./pages/empresa/AfiliadoDetalhe";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
@@ -199,6 +200,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="COLABORADOR">
                     <EmpresaJogadores />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/jogadores/:playerId"
+                element={
+                  <ProtectedRoute requiredRole="COLABORADOR">
+                    <JogadorDetalhe />
                   </ProtectedRoute>
                 }
               />

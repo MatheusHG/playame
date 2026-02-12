@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,14 +23,24 @@ interface ManualPaymentApprovalProps {
     amount: number;
   };
   onSuccess?: () => void;
+  /** Se true, não renderiza os botões (para uso dentro de dropdown). Os diálogos continuam disponíveis via onRegisterControls. */
+  hideButtons?: boolean;
+  /** Registra funções para abrir os diálogos de aprovar/rejeitar (usado quando hideButtons=true). */
+  onRegisterControls?: (openApprove: () => void, openReject: () => void) => void;
 }
 
-export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentApprovalProps) {
+export function ManualPaymentApproval({ payment, onSuccess, hideButtons, onRegisterControls }: ManualPaymentApprovalProps) {
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (onRegisterControls && (payment.status === 'pending' || payment.status === 'processing')) {
+      onRegisterControls(() => setIsApproveOpen(true), () => setIsRejectOpen(true));
+    }
+  }, [onRegisterControls, payment.status]);
 
   const approveMutation = useMutation({
     mutationFn: async () => {
@@ -95,31 +105,33 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
     },
   });
 
-  // Hide buttons if status is no longer pending
-  if (payment.status !== 'pending' && payment.status !== 'processing') {
-    return null;
-  }
+  const isPending = payment.status === 'pending' || payment.status === 'processing';
+  const showButtons = isPending && !hideButtons;
 
   return (
-    <div className="flex items-center gap-2">
-      <Button 
-        size="sm" 
-        variant="outline"
-        className="text-primary border-primary hover:bg-primary/10"
-        onClick={() => setIsApproveOpen(true)}
-      >
-        <CheckCircle className="h-4 w-4 mr-1" />
-        Aprovar
-      </Button>
-      <Button 
-        size="sm" 
-        variant="outline"
-        className="text-destructive border-destructive hover:bg-destructive/10"
-        onClick={() => setIsRejectOpen(true)}
-      >
-        <XCircle className="h-4 w-4 mr-1" />
-        Rejeitar
-      </Button>
+    <>
+      {showButtons && (
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="text-primary border-primary hover:bg-primary/10"
+            onClick={() => setIsApproveOpen(true)}
+          >
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Aprovar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="text-destructive border-destructive hover:bg-destructive/10"
+            onClick={() => setIsRejectOpen(true)}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            Rejeitar
+          </Button>
+        </div>
+      )}
 
       {/* Approve Dialog */}
       <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
@@ -146,7 +158,7 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
         </DialogContent>
       </Dialog>
 
-      {/* Reject Dialog */}
+      {/* Reject Dialog - sempre renderizado quando isPending para permitir abertura via onRegisterControls */}
       <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
         <DialogContent>
           <DialogHeader>
@@ -180,6 +192,6 @@ export function ManualPaymentApproval({ payment, onSuccess }: ManualPaymentAppro
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

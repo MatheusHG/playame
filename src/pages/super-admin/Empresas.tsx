@@ -19,7 +19,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Settings, Pause, Play, Trash2 } from 'lucide-react';
+import { Plus, Settings, Pause, Play, Trash2, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Company, CompanyStatus } from '@/types/database.types';
 
 export default function SuperAdminEmpresas() {
@@ -162,47 +169,56 @@ export default function SuperAdminEmpresas() {
       key: 'actions',
       header: 'Ações',
       render: (item) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/super-admin/empresas/${item.id}/configurar`);
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              updateStatusMutation.mutate({
-                id: item.id,
-                status: item.status === 'active' ? 'suspended' : 'active',
-              });
-            }}
-          >
-            {item.status === 'active' ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedCompany(item);
-              setDeleteDialogOpen(true);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => navigate(`/super-admin/empresas/${item.id}/configurar`)} className="gap-2">
+              <Settings className="h-4 w-4" />
+              Configurar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                updateStatusMutation.mutate({
+                  id: item.id,
+                  status: item.status === 'active' ? 'suspended' : 'active',
+                })
+              }
+              className="gap-2"
+            >
+              {item.status === 'active' ? (
+                <>
+                  <Pause className="h-4 w-4" />
+                  Suspender
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Ativar
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedCompany(item);
+                setDeleteDialogOpen(true);
+              }}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];

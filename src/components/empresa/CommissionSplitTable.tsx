@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAffiliateCommissions } from '@/hooks/useAffiliates';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,13 @@ interface CommissionSplitTableProps {
 }
 
 export function CommissionSplitTable({ companyId }: CommissionSplitTableProps) {
-  const { commissions, isLoading } = useAffiliateCommissions(companyId);
+  const { commissions: allCommissions, isLoading } = useAffiliateCommissions(companyId);
+
+  // Apenas comissões com pagamento aprovado entram no histórico
+  const commissions = useMemo(
+    () => (allCommissions || []).filter((c: any) => c.payment?.status === 'succeeded'),
+    [allCommissions]
+  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -85,6 +92,19 @@ export function CommissionSplitTable({ companyId }: CommissionSplitTableProps) {
         </Badge>
       ),
     },
+    {
+      key: 'payment_status',
+      header: 'Status do pagamento',
+      render: (item) => {
+        const status = (item as any).payment?.status;
+        const label = status === 'succeeded' ? 'Aprovado' : status === 'pending' || status === 'processing' ? 'Pendente' : status || '—';
+        return (
+          <Badge variant={status === 'succeeded' ? 'default' : 'secondary'}>
+            {label}
+          </Badge>
+        );
+      },
+    },
   ];
 
   return (
@@ -92,7 +112,7 @@ export function CommissionSplitTable({ companyId }: CommissionSplitTableProps) {
       <div>
         <h3 className="text-lg font-semibold">Histórico de Comissões</h3>
         <p className="text-sm text-muted-foreground">
-          Detalhamento de splits por venda com auditoria completa
+          Apenas comissões com pagamento aprovado
         </p>
       </div>
 
@@ -101,7 +121,7 @@ export function CommissionSplitTable({ companyId }: CommissionSplitTableProps) {
         columns={columns}
         loading={isLoading}
         searchPlaceholder="Buscar por sorteio..."
-        emptyMessage="Nenhuma comissão registrada"
+        emptyMessage="Nenhuma comissão com pagamento aprovado"
         pageSize={20}
       />
     </div>

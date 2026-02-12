@@ -170,6 +170,12 @@ export default function AfiliadoDetalhe() {
     };
   }, [commissions, recentSales, affiliate]);
 
+  // Apenas comissões com pagamento aprovado entram no histórico
+  const commissionsApproved = useMemo(
+    () => (commissions || []).filter((c: any) => c.payment?.status === 'succeeded'),
+    [commissions]
+  );
+
   // Get cambistas if this is a manager
   const cambistas = useMemo(() => {
     if (affiliate?.type !== 'manager' || !company?.id) return [];
@@ -247,12 +253,16 @@ export default function AfiliadoDetalhe() {
     },
     {
       key: 'status',
-      header: 'Status',
-      render: (item) => (
-        <Badge variant={item.payment?.status === 'succeeded' ? 'default' : 'secondary'}>
-          {item.payment?.status === 'succeeded' ? 'Pago' : 'Pendente'}
-        </Badge>
-      ),
+      header: 'Status do pagamento',
+      render: (item) => {
+        const status = item.payment?.status;
+        const label = status === 'succeeded' ? 'Aprovado' : status === 'pending' || status === 'processing' ? 'Pendente' : status || '—';
+        return (
+          <Badge variant={status === 'succeeded' ? 'default' : 'secondary'}>
+            {label}
+          </Badge>
+        );
+      },
     },
   ];
 
@@ -524,15 +534,15 @@ export default function AfiliadoDetalhe() {
               <CardHeader>
                 <CardTitle>Histórico de Comissões</CardTitle>
                 <CardDescription>
-                  Comissões geradas no período selecionado
+                  Apenas comissões com pagamento aprovado
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <DataTable
-                  data={commissions}
+                  data={commissionsApproved}
                   columns={commissionColumns}
                   loading={commissionsLoading}
-                  emptyMessage="Nenhuma comissão encontrada no período"
+                  emptyMessage="Nenhuma comissão com pagamento aprovado no período"
                   pageSize={15}
                 />
               </CardContent>

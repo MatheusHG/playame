@@ -337,7 +337,8 @@ export function useAffiliateCommissions(companyId?: string) {
           *,
           manager:affiliates!affiliate_commissions_manager_id_fkey(id, name),
           cambista:affiliates!affiliate_commissions_cambista_id_fkey(id, name),
-          raffle:raffles(name)
+          raffle:raffles(name),
+          payment:payments(status)
         `)
         .order('created_at', { ascending: false })
         .limit(200);

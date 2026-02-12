@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
 import { useAffiliate } from '@/contexts/AffiliateContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -194,10 +194,13 @@ export default function Comissoes() {
           </CardContent>
         </Card>
 
-        {/* Commissions Table */}
+        {/* Commissions Table - apenas pagamentos aprovados */}
         <Card>
           <CardHeader>
             <CardTitle>Histórico de Comissões</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Apenas comissões com pagamento aprovado
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -206,58 +209,50 @@ export default function Comissoes() {
                   <TableHead>Sorteio</TableHead>
                   <TableHead>Valor Venda</TableHead>
                   <TableHead>Sua Comissão</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Status do pagamento</TableHead>
                   <TableHead>Data</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {commissions?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma comissão encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  commissions?.map((commission: any) => {
-                    const isPaid = commission.payment?.status === 'succeeded';
+                {(() => {
+                  const approvedOnly = commissions?.filter((c: any) => c.payment?.status === 'succeeded') ?? [];
+                  if (approvedOnly.length === 0) {
                     return (
-                      <TableRow key={commission.id}>
-                        <TableCell>
-                          <p className="font-medium">{commission.raffle?.name}</p>
-                        </TableCell>
-                        <TableCell>
-                          {formatCurrency(commission.sale_amount)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium">
-                            {formatCurrency(commission[amountKey] || 0)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={isPaid ? 'default' : 'secondary'}>
-                            {isPaid ? (
-                              <>
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Pago
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-3 w-3 mr-1" />
-                                Pendente
-                              </>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(commission.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                          </div>
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          Nenhuma comissão com pagamento aprovado
                         </TableCell>
                       </TableRow>
                     );
-                  })
-                )}
+                  }
+                  return approvedOnly.map((commission: any) => (
+                    <TableRow key={commission.id}>
+                      <TableCell>
+                        <p className="font-medium">{commission.raffle?.name}</p>
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(commission.sale_amount)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">
+                          {formatCurrency(commission[amountKey] || 0)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="default">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Aprovado
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(commission.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })()}
               </TableBody>
             </Table>
           </CardContent>

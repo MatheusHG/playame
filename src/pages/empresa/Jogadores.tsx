@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/contexts/TenantContext';
@@ -12,9 +12,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, ShieldAlert, ShieldCheck, Eye, Ticket } from 'lucide-react';
+import { Users, ShieldAlert, ShieldCheck, Eye, Ticket, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getDisplayCpf } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type Player = Database['public']['Tables']['players']['Row'];
@@ -98,10 +106,13 @@ export default function EmpresaJogadores() {
       key: 'name',
       header: 'Jogador',
       render: (player) => (
-        <div>
+        <Link
+          to={`/empresa/${slug}/jogadores/${player.id}`}
+          className="block hover:opacity-80 transition-opacity"
+        >
           <p className="font-medium">{player.name}</p>
-          <p className="text-xs text-muted-foreground">CPF: ***.***.***-{player.cpf_last4}</p>
-        </div>
+          <p className="text-xs text-muted-foreground">CPF: {getDisplayCpf(player) || `***.***.***-${player.cpf_last4}`}</p>
+        </Link>
       ),
     },
     {
@@ -142,35 +153,47 @@ export default function EmpresaJogadores() {
       key: 'actions',
       header: 'Ações',
       render: (player) => (
-        <div className="flex items-center gap-2">
-          {player.status === 'blocked' ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                blockMutation.mutate({ playerId: player.id, block: false });
-              }}
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => e.stopPropagation()}
             >
-              <ShieldCheck className="mr-1 h-4 w-4" />
-              Desbloquear
+              <MoreVertical className="h-4 w-4" />
             </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedPlayer(player);
-                setBlockDialogOpen(true);
-              }}
-            >
-              <ShieldAlert className="mr-1 h-4 w-4" />
-              Bloquear
-            </Button>
-          )}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem asChild>
+              <Link to={`/empresa/${slug}/jogadores/${player.id}`} className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Ver perfil
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {player.status === 'blocked' ? (
+              <DropdownMenuItem
+                onClick={() => blockMutation.mutate({ playerId: player.id, block: false })}
+                className="gap-2"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Desbloquear
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPlayer(player);
+                  setBlockDialogOpen(true);
+                }}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Bloquear
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
