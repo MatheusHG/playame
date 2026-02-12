@@ -33,6 +33,8 @@ import {
   Users,
   Save,
   KeyRound,
+  Link2,
+  Copy,
 } from 'lucide-react';
 
 export default function AfiliadoDetalhe() {
@@ -420,25 +422,54 @@ export default function AfiliadoDetalhe() {
                 </div>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{affiliate.phone || 'Não informado'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{affiliate.email || 'Não informado'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Percent className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    {affiliate.commission_percent}% 
-                    {!isManager && ' sobre o gerente'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>Desde {format(new Date(affiliate.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <div className="space-y-4">
+                {/* Link do afiliado - URL que ele compartilha */}
+                {affiliate.link_code && slug && (
+                  <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Link2 className="h-4 w-4" />
+                      Link do afiliado (URL para compartilhar)
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <code className="flex-1 min-w-0 text-sm bg-background px-3 py-2 rounded border break-all">
+                        {typeof window !== 'undefined' ? `${window.location.origin}/empresa/${slug}?ref=${affiliate.link_code}` : `/empresa/${slug}?ref=${affiliate.link_code}`}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = `${window.location.origin}/empresa/${slug}?ref=${affiliate.link_code}`;
+                          navigator.clipboard.writeText(url);
+                          toast({ title: 'Link copiado!', description: 'URL copiada para a área de transferência.' });
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{affiliate.phone || 'Não informado'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{affiliate.email || 'Não informado'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {affiliate.commission_percent}%
+                      {!isManager && ' sobre o gerente'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>Desde {format(new Date(affiliate.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                  </div>
                 </div>
               </div>
             )}
