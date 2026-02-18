@@ -158,7 +158,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Gerentes e Cambistas</h3>
+          <h3 className="text-lg font-semibold">Gerentes e Operadores</h3>
           <p className="text-sm text-muted-foreground">
             Gerencie sua rede de afiliados e configure comissões
           </p>
@@ -207,7 +207,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                           <Percent className="h-3 w-3" />
                           {manager.commission_percent}% de comissão
                           <span className="mx-1">•</span>
-                          {cambistas.length} cambista{cambistas.length !== 1 ? 's' : ''}
+                          {cambistas.length} operador{cambistas.length !== 1 ? 'es' : ''}
                         </div>
                       </div>
                     </div>
@@ -226,7 +226,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenNewCambista(manager.id)}>
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Adicionar Cambista
+                          Adicionar Operador
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEdit(manager)}>
                           <Pencil className="h-4 w-4 mr-2" />
@@ -276,7 +276,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
 
                     <div className="border-t pt-3">
                       <div className="flex justify-between items-center mb-2">
-                        <h5 className="text-sm font-medium">Cambistas</h5>
+                        <h5 className="text-sm font-medium">Operadores</h5>
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -289,7 +289,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
 
                       {cambistas.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-2">
-                          Nenhum cambista cadastrado para este gerente.
+                          Nenhum operador cadastrado para este gerente.
                         </p>
                       ) : (
                         <div className="space-y-2">
@@ -308,7 +308,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                                   )}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {cambista.commission_percent}% sobre o gerente
+                                  {cambista.commission_percent}% sobre o gerente (operador)
                                   {cambista.phone && ` • ${cambista.phone}`}
                                 </div>
                               </div>

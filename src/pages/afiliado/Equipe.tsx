@@ -124,7 +124,7 @@ export default function Equipe() {
   }
 
   return (
-    <AffiliateLayout title="Minha Equipe" description="Gerencie seus cambistas">
+    <AffiliateLayout title="Minha Equipe" description="Gerencie seus operadores">
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -185,7 +185,7 @@ export default function Equipe() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Cambistas
+              Operadores
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -204,7 +204,7 @@ export default function Equipe() {
                 {filteredTeam?.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nenhum cambista encontrado
+                      Nenhum operador encontrado
                     </TableCell>
                   </TableRow>
                 ) : (

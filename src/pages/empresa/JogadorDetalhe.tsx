@@ -534,16 +534,16 @@ export default function JogadorDetalhe() {
                   <TabsTrigger value="winner">Ganhadoras ({winnerTickets.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="all" className="mt-0">
-                  <TicketTable tickets={tickets} format={format} ptBR={ptBR} />
+                  <TicketTable tickets={tickets} formatDate={(d) => format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })} />
                 </TabsContent>
                 <TabsContent value="active" className="mt-0">
-                  <TicketTable tickets={activeTickets} format={format} ptBR={ptBR} />
+                  <TicketTable tickets={activeTickets} formatDate={(d) => format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })} />
                 </TabsContent>
                 <TabsContent value="pending" className="mt-0">
-                  <TicketTable tickets={pendingTickets} format={format} ptBR={ptBR} />
+                  <TicketTable tickets={pendingTickets} formatDate={(d) => format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })} />
                 </TabsContent>
                 <TabsContent value="winner" className="mt-0">
-                  <TicketTable tickets={winnerTickets} format={format} ptBR={ptBR} />
+                  <TicketTable tickets={winnerTickets} formatDate={(d) => format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })} />
                 </TabsContent>
               </Tabs>
             </TabsContent>
@@ -608,12 +608,10 @@ export default function JogadorDetalhe() {
 
 function TicketTable({
   tickets,
-  format,
-  ptBR,
+  formatDate,
 }: {
   tickets: TicketRow[];
-  format: (d: Date, f: string, o: { locale: typeof ptBR }) => string;
-  ptBR: typeof ptBR;
+  formatDate: (d: Date) => string;
 }) {
   if (tickets.length === 0) {
     return <p className="text-muted-foreground text-center py-8">Nenhuma cartela nesta lista.</p>;
@@ -651,7 +649,7 @@ function TicketTable({
               {(t.ticket_numbers || []).map((n) => n.number).sort((a, b) => a - b).join(', ')}
             </TableCell>
             <TableCell className="text-muted-foreground">
-              {t.purchased_at ? format(new Date(t.purchased_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : t.created_at ? format(new Date(t.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+              {t.purchased_at ? formatDate(new Date(t.purchased_at)) : t.created_at ? formatDate(new Date(t.created_at)) : '—'}
             </TableCell>
           </TableRow>
         ))}

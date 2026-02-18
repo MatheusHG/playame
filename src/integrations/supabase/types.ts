@@ -835,6 +835,7 @@ export type Database = {
           numbers_per_ticket: number
           prize_mode: Database["public"]["Enums"]["prize_mode"] | null
           prize_percent_of_sales: number | null
+          regulations: string | null
           rules_version: number | null
           scheduled_at: string | null
           status: Database["public"]["Enums"]["raffle_status"] | null
@@ -858,6 +859,7 @@ export type Database = {
           numbers_per_ticket?: number
           prize_mode?: Database["public"]["Enums"]["prize_mode"] | null
           prize_percent_of_sales?: number | null
+          regulations?: string | null
           rules_version?: number | null
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["raffle_status"] | null
@@ -881,6 +883,7 @@ export type Database = {
           numbers_per_ticket?: number
           prize_mode?: Database["public"]["Enums"]["prize_mode"] | null
           prize_percent_of_sales?: number | null
+          regulations?: string | null
           rules_version?: number | null
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["raffle_status"] | null
