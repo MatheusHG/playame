@@ -717,6 +717,7 @@ export type Database = {
           blocked_reason: string | null
           city: string | null
           company_id: string
+          cpf_encrypted: string | null
           cpf_hash: string
           cpf_last4: string
           created_at: string
@@ -733,6 +734,7 @@ export type Database = {
           blocked_reason?: string | null
           city?: string | null
           company_id: string
+          cpf_encrypted?: string | null
           cpf_hash: string
           cpf_last4: string
           created_at?: string
@@ -749,6 +751,7 @@ export type Database = {
           blocked_reason?: string | null
           city?: string | null
           company_id?: string
+          cpf_encrypted?: string | null
           cpf_hash?: string
           cpf_last4?: string
           created_at?: string
