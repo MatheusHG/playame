@@ -19,6 +19,7 @@ type PrizeMode = Database['public']['Enums']['prize_mode'];
 const raffleSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
+  regulations: z.string().optional(),
   ticket_price: z.coerce.number().positive('Preço deve ser maior que zero'),
   number_range_start: z.coerce.number().int().min(0, 'Início deve ser >= 0'),
   number_range_end: z.coerce.number().int().min(1, 'Fim deve ser >= 1'),
@@ -63,6 +64,7 @@ export function RaffleForm({ companyId, defaultValues, onSubmit, isLoading, subm
     defaultValues: {
       name: '',
       description: '',
+      regulations: '',
       ticket_price: 10,
       number_range_start: 0,
       number_range_end: 99,
@@ -128,6 +130,17 @@ export function RaffleForm({ companyId, defaultValues, onSubmit, isLoading, subm
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea id="description" {...register('description')} placeholder="Descreva o sorteio..." rows={3} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="regulations">Regulamento</Label>
+            <Textarea
+              id="regulations"
+              {...register('regulations')}
+              placeholder="Defina as regras e regulamentos específicos deste bolão/sorteio..."
+              rows={5}
+            />
+            <p className="text-xs text-muted-foreground">Regras exibidas para os jogadores na página do sorteio</p>
           </div>
 
           {/* Image Upload */}

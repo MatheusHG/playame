@@ -31,13 +31,13 @@ export default function EmpresaAfiliados() {
   return (
     <EmpresaLayout
       title="Afiliados"
-      description="Gerencie sua rede de gerentes e cambistas"
+      description="Gerencie sua rede de gerentes e operadores"
     >
       <Tabs defaultValue="affiliates" className="space-y-6">
         <TabsList>
           <TabsTrigger value="affiliates" className="gap-2">
             <Users className="h-4 w-4" />
-            Gerentes e Cambistas
+            Gerentes e Operadores
           </TabsTrigger>
           <TabsTrigger value="commissions" className="gap-2">
             <Receipt className="h-4 w-4" />
@@ -87,7 +87,7 @@ export default function EmpresaAfiliados() {
                   </div>
 
                   <div className="p-4 rounded-lg bg-secondary">
-                    <p className="text-sm text-muted-foreground">Cambista</p>
+                    <p className="text-sm text-muted-foreground">Operador</p>
                     <p className="text-2xl font-bold text-secondary-foreground">
                       R$ {calculation.cambistaAmount?.toFixed(2) || '0.00'}
                     </p>
@@ -126,7 +126,7 @@ export default function EmpresaAfiliados() {
                       5. Empresa após gerente: R$ {calculation.companyNetAmount.toFixed(2)}
                     </li>
                     <li className="pl-4 text-muted-foreground">
-                      • Cambista ({sampleCambistaPercent}% do gerente): R$ {calculation.cambistaAmount?.toFixed(2)}
+                      • Operador ({sampleCambistaPercent}% do gerente): R$ {calculation.cambistaAmount?.toFixed(2)}
                     </li>
                     <li className="pl-4 text-muted-foreground">
                       • Gerente (líquido): R$ {calculation.managerNetAmount?.toFixed(2)}

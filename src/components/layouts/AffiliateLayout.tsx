@@ -200,7 +200,7 @@ function UserMenu({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{affiliate.name}</p>
           <Badge variant="outline" className="text-xs">
-            {affiliate.type === 'manager' ? 'Gerente' : 'Cambista'}
+            {affiliate.type === 'manager' ? 'Gerente' : 'Operador'}
           </Badge>
         </div>
         <Button variant="ghost" size="icon" onClick={onSignOut}>
@@ -223,7 +223,7 @@ function UserMenu({
         <DropdownMenuLabel>
           <p className="font-medium">{affiliate.name}</p>
           <p className="text-xs text-muted-foreground">
-            {affiliate.type === 'manager' ? 'Gerente' : 'Cambista'}
+            {affiliate.type === 'manager' ? 'Gerente' : 'Operador'}
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

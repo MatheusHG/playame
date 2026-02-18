@@ -330,7 +330,7 @@ export default function AfiliadoDetalhe() {
   return (
     <EmpresaLayout
       title={affiliate.name}
-      description={isManager ? 'Detalhes do Gerente' : 'Detalhes do Cambista'}
+      description={isManager ? 'Detalhes do Gerente' : 'Detalhes do Operador'}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -368,7 +368,7 @@ export default function AfiliadoDetalhe() {
                     </Badge>
                   </CardTitle>
                   <CardDescription>
-                    {isManager ? 'Gerente' : 'Cambista'}
+                    {isManager ? 'Gerente' : 'Operador'}
                     {!isManager && affiliate.parent && (
                       <> • Gerente: {affiliate.parent.name}</>
                     )}

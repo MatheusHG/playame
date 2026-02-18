@@ -33,7 +33,7 @@ import { getDisplayCpf } from '@/lib/utils';
 
 type Payment = Database['public']['Tables']['payments']['Row'];
 type PaymentWithPlayer = Payment & {
-  player: { id: string; name: string; cpf_encrypted: string | null; cpf_last4: string } | null;
+  player: { id: string; name: string; cpf_last4: string } | null;
 };
 type AffiliateCommissionRow = Database['public']['Tables']['affiliate_commissions']['Row'] & {
   manager?: { id: string; name: string } | null;
@@ -201,12 +201,12 @@ export default function EmpresaFinanceiro() {
     {
       key: 'player_cpf',
       header: 'CPF',
-      render: (p) => {
-        const player = (p as PaymentWithPlayer).player;
-        if (!player) return '—';
-        const cpf = getDisplayCpf({ cpf_encrypted: player.cpf_encrypted, cpf_last4: player.cpf_last4 });
-        return <span className="font-mono text-sm">{cpf || '—'}</span>;
-      },
+        render: (p) => {
+          const player = (p as PaymentWithPlayer).player;
+          if (!player) return '—';
+          const cpf = getDisplayCpf({ cpf_encrypted: null, cpf_last4: player.cpf_last4 });
+          return <span className="font-mono text-sm">{cpf || '—'}</span>;
+        },
     },
     {
       key: 'amount',

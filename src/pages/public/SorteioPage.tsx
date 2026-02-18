@@ -716,6 +716,20 @@ export default function SorteioPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Regulations */}
+            {(raffle as any).regulations && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Regulamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {(raffle as any).regulations}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </main>

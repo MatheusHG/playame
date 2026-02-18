@@ -25,6 +25,7 @@ export default function NovoSorteio() {
       {
         name: data.name,
         description: data.description || null,
+        regulations: (data as any).regulations || null,
         ticket_price: data.ticket_price,
         number_range_start: data.number_range_start,
         number_range_end: data.number_range_end,

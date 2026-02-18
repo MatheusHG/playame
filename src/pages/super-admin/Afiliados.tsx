@@ -87,7 +87,7 @@ export default function SuperAdminAfiliados() {
       header: 'Tipo',
       render: (item) => (
         <Badge variant={item.type === 'manager' ? 'default' : 'secondary'}>
-          {item.type === 'manager' ? 'Gerente' : 'Cambista'}
+          {item.type === 'manager' ? 'Gerente' : 'Operador'}
         </Badge>
       ),
     },
@@ -221,7 +221,7 @@ export default function SuperAdminAfiliados() {
                   <strong>2. Comissão do Gerente:</strong> Definida pela Empresa, calculada sobre o valor total da venda.
                 </p>
                 <p>
-                  <strong>3. Comissão do Cambista:</strong> Definida pelo Gerente, calculada sobre o valor que o Gerente recebe.
+                  <strong>3. Comissão do Operador:</strong> Definida pelo Gerente, calculada sobre o valor que o Gerente recebe.
                 </p>
                 <p className="text-muted-foreground border-t pt-3">
                   A Empresa recebe o restante após todas as deduções.

@@ -127,13 +127,13 @@ export function AffiliateForm({
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>
-              {isEdit ? 'Editar' : 'Novo'} {isCambista ? 'Cambista' : 'Gerente'}
+          <DialogTitle>
+              {isEdit ? 'Editar' : 'Novo'} {isCambista ? 'Operador' : 'Gerente'}
             </DialogTitle>
             <DialogDescription>
               {isEdit
                 ? 'Atualize as informações do afiliado.'
-                : `Cadastre um novo ${isCambista ? 'cambista' : 'gerente'} com acesso ao portal.`}
+                : `Cadastre um novo ${isCambista ? 'operador' : 'gerente'} com acesso ao portal.`}
             </DialogDescription>
           </DialogHeader>
 

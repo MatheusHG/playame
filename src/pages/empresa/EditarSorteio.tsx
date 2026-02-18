@@ -30,6 +30,7 @@ export default function EditarSorteio() {
         data: {
           name: data.name,
           description: data.description || null,
+          regulations: (data as any).regulations || null,
           ticket_price: data.ticket_price,
           number_range_start: data.number_range_start,
           number_range_end: data.number_range_end,
@@ -80,6 +81,7 @@ export default function EditarSorteio() {
           defaultValues={{
             name: raffle.name,
             description: raffle.description || '',
+            regulations: (raffle as any).regulations || '',
             ticket_price: Number(raffle.ticket_price),
             number_range_start: raffle.number_range_start,
             number_range_end: raffle.number_range_end,

@@ -33,10 +33,10 @@ interface PermissionProfilesManagerProps {
 // All available permissions
 const PERMISSIONS = [
   { key: 'can_view_own_sales', label: 'Ver próprias vendas', description: 'Visualizar histórico de vendas próprias' },
-  { key: 'can_view_team_sales', label: 'Ver vendas da equipe', description: 'Visualizar vendas dos cambistas (apenas gerentes)' },
+  { key: 'can_view_team_sales', label: 'Ver vendas da equipe', description: 'Visualizar vendas dos operadores (apenas gerentes)' },
   { key: 'can_view_own_commissions', label: 'Ver próprias comissões', description: 'Visualizar histórico de comissões' },
-  { key: 'can_view_team_commissions', label: 'Ver comissões da equipe', description: 'Visualizar comissões dos cambistas' },
-  { key: 'can_manage_cambistas', label: 'Gerenciar cambistas', description: 'Adicionar, editar e remover cambistas' },
+  { key: 'can_view_team_commissions', label: 'Ver comissões da equipe', description: 'Visualizar comissões dos operadores' },
+  { key: 'can_manage_cambistas', label: 'Gerenciar operadores', description: 'Adicionar, editar e remover operadores' },
   { key: 'can_create_sales', label: 'Criar vendas', description: 'Registrar vendas manuais no sistema' },
   { key: 'can_view_reports', label: 'Ver relatórios', description: 'Acessar relatórios de desempenho' },
   { key: 'can_export_data', label: 'Exportar dados', description: 'Baixar relatórios em CSV/Excel' },
@@ -256,11 +256,11 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
         </div>
       </div>
 
-      {/* Cambista Profiles */}
+      {/* Operador Profiles */}
       <div>
         <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
           <Users className="h-5 w-5" />
-          Perfis de Cambista
+          Perfis de Operador
         </h3>
         <div className="grid gap-4 md:grid-cols-2">
           {cambistaProfiles.map((profile) => (
@@ -273,7 +273,7 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
           ))}
           {cambistaProfiles.length === 0 && (
             <p className="text-muted-foreground text-sm col-span-2">
-              Nenhum perfil de cambista criado.
+              Nenhum perfil de operador criado.
             </p>
           )}
         </div>
@@ -315,7 +315,7 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manager">Gerente</SelectItem>
-                    <SelectItem value="cambista">Cambista</SelectItem>
+                    <SelectItem value="cambista">Operador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
