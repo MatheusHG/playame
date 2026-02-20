@@ -40,6 +40,7 @@ import AfiliadoDetalhe from "./pages/empresa/AfiliadoDetalhe";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
 import EmpresaWebhookLogs from "./pages/empresa/WebhookLogs";
+import VendaRua from "./pages/empresa/VendaRua";
 
 // Affiliate Portal Pages
 import AffiliateLogin from "./pages/afiliado/Login";
@@ -248,6 +249,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="ADMIN_EMPRESA">
                     <EmpresaConfiguracoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/venda-rua"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <VendaRua />
                   </ProtectedRoute>
                 }
               />
