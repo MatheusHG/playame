@@ -314,6 +314,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
           payments_enabled: boolean | null
           primary_color: string | null
           secondary_color: string | null
@@ -330,6 +331,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           payments_enabled?: boolean | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -346,6 +348,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           payments_enabled?: boolean | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -1257,6 +1260,7 @@ export type Database = {
       affiliate_type: "manager" | "cambista"
       app_role: "SUPER_ADMIN" | "ADMIN_EMPRESA" | "COLABORADOR"
       company_status: "active" | "suspended" | "deleted"
+      payment_method: "manual" | "online"
       payment_status:
         | "pending"
         | "processing"
@@ -1398,6 +1402,7 @@ export const Constants = {
       affiliate_type: ["manager", "cambista"],
       app_role: ["SUPER_ADMIN", "ADMIN_EMPRESA", "COLABORADOR"],
       company_status: ["active", "suspended", "deleted"],
+      payment_method: ["manual", "online"],
       payment_status: [
         "pending",
         "processing",

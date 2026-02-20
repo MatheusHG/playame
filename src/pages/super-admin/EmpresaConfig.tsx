@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Company } from '@/types/database.types';
 import { StripeConfigCard } from '@/components/super-admin/StripeConfigCard';
@@ -28,6 +29,7 @@ export default function SuperAdminEmpresaConfig() {
     secondary_color: '#1E40AF',
     admin_fee_percentage: 10,
     payments_enabled: false,
+    payment_method: 'manual' as 'manual' | 'online',
   });
 
   const { data: company, isLoading } = useQuery({
@@ -54,6 +56,7 @@ export default function SuperAdminEmpresaConfig() {
         secondary_color: company.secondary_color,
         admin_fee_percentage: company.admin_fee_percentage,
         payments_enabled: company.payments_enabled,
+        payment_method: (company as any).payment_method || 'manual',
       });
     }
   }, [company]);
@@ -261,14 +264,55 @@ export default function SuperAdminEmpresaConfig() {
                   }
                 />
               </div>
+
+              {/* Meio de Pagamento */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label>Meio de Pagamento</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all',
+                      formData.payment_method === 'manual'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-muted-foreground/50'
+                    )}
+                    onClick={() => setFormData({ ...formData, payment_method: 'manual' })}
+                  >
+                    <span className="text-2xl">🧾</span>
+                    <span className="font-medium text-sm">Manual</span>
+                    <span className="text-xs text-muted-foreground text-center">
+                      Admin da empresa aprova
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all',
+                      formData.payment_method === 'online'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-muted-foreground/50'
+                    )}
+                    onClick={() => setFormData({ ...formData, payment_method: 'online' })}
+                  >
+                    <span className="text-2xl">💳</span>
+                    <span className="font-medium text-sm">Online (Stripe)</span>
+                    <span className="text-xs text-muted-foreground text-center">
+                      Pagamento via Stripe
+                    </span>
+                  </button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Integração Stripe */}
-          <StripeConfigCard
-            companyId={company.id}
-            hasStripeConfigured={!!company.stripe_secret_key_encrypted}
-          />
+          {/* Integração Stripe - só mostra se payment_method === 'online' */}
+          {formData.payment_method === 'online' && (
+            <StripeConfigCard
+              companyId={company.id}
+              hasStripeConfigured={!!company.stripe_secret_key_encrypted}
+            />
+          )}
         </div>
 
         <div className="mt-6 flex justify-end">

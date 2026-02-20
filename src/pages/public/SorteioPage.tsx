@@ -351,7 +351,20 @@ export default function SorteioPage() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      window.location.href = data.checkoutUrl;
+      if (data.manual) {
+        // Manual payment: show success message, no redirect
+        setPurchaseDialogOpen(false);
+        toast({
+          title: 'Cartela registrada com sucesso!',
+          description: 'Aguarde a aprovação do pagamento pelo administrador.',
+        });
+        setTickets([{ id: 1, numbers: [] }]);
+        setActiveTicketId(1);
+        promptedTicketIdsRef.current.clear();
+        setIsProcessing(false);
+      } else {
+        window.location.href = data.checkoutUrl;
+      }
     } catch (err) {
       toast({
         variant: 'destructive',
