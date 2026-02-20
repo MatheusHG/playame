@@ -10,6 +10,8 @@ export type PrizeType = 'money' | 'object';
 export type TicketStatus = 'pending_payment' | 'active' | 'winner' | 'cancelled';
 export type PaymentStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'refunded';
 
+export type PaymentMethod = 'manual' | 'online';
+
 export interface Company {
   id: string;
   name: string;
@@ -20,6 +22,7 @@ export interface Company {
   stripe_secret_key_encrypted: string | null;
   stripe_webhook_secret_encrypted: string | null;
   payments_enabled: boolean;
+  payment_method: PaymentMethod;
   admin_fee_percentage: number;
   status: CompanyStatus;
   deleted_at: string | null;

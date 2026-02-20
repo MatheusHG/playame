@@ -136,12 +136,14 @@ serve(async (req) => {
       throw new Error("Pagamentos não habilitados para esta empresa");
     }
 
-    if (!company.stripe_secret_key_encrypted) {
+    const isManualPayment = company.payment_method === 'manual';
+
+    if (!isManualPayment && !company.stripe_secret_key_encrypted) {
       throw new Error("Stripe não configurado para esta empresa");
     }
 
-    // Decode Stripe key
-    const stripeSecretKey = atob(company.stripe_secret_key_encrypted);
+    // Decode Stripe key (only needed for online payments)
+    const stripeSecretKey = isManualPayment ? '' : atob(company.stripe_secret_key_encrypted!);
 
     // Fetch raffle
     const { data: raffle, error: raffleError } = await supabase
@@ -372,7 +374,21 @@ serve(async (req) => {
       console.error("Error creating commission record:", commissionError);
     }
 
-    // Create Stripe checkout session
+    if (isManualPayment) {
+      // Manual payment: no Stripe, return success immediately
+      return new Response(
+        JSON.stringify({
+          success: true,
+          manual: true,
+          paymentId: payment.id,
+          ticketIds: tickets.map(t => t.id),
+          message: "Pagamento registrado. Aguarde a aprovação do administrador.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
+    // Online payment: create Stripe checkout session
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     const session = await stripe.checkout.sessions.create({
@@ -387,7 +403,7 @@ serve(async (req) => {
                   ? `Inclui desconto de ${discountPercent}%`
                   : `${quantity} cartela(s) com ${raffle.numbers_per_ticket} números cada`,
             },
-            unit_amount: Math.round(finalAmount * 100), // Convert to cents
+            unit_amount: Math.round(finalAmount * 100),
           },
           quantity: 1,
         },
