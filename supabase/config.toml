@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.resume-checkout]
 verify_jwt = false
+
+[functions.create-street-sale]
+verify_jwt = false
