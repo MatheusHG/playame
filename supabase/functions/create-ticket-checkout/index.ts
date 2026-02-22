@@ -28,44 +28,46 @@ function calculateCommissions(
   manager?: { id: string; name: string; commission_percent: number },
   cambista?: { id: string; name: string; commission_percent: number }
 ): CommissionCalculation {
-  // Super-Admin taxa (sempre primeiro)
-  const superAdminAmount = saleAmount * (superAdminPercent / 100);
-  let companyNetAmount = saleAmount - superAdminAmount;
+  // 1. Taxa administrativa do sistema (Super-Admin)
+  const superAdminAmount = Math.round(saleAmount * (superAdminPercent / 100) * 100) / 100;
+  // 2. Valor líquido da empresa (após taxa admin)
+  const companyAfterAdmin = Math.round((saleAmount - superAdminAmount) * 100) / 100;
+  let companyNetAmount = companyAfterAdmin;
 
   const result: CommissionCalculation = {
     saleAmount,
     superAdminPercent,
-    superAdminAmount: Math.round(superAdminAmount * 100) / 100,
+    superAdminAmount,
     companyNetAmount,
     ratesSnapshot: {
       super_admin_percent: superAdminPercent,
     },
   };
 
-  // Gerente taxa (se existir)
+  // 3. Gerente: percentual sobre o valor líquido da empresa (após taxa admin)
   if (manager && manager.commission_percent > 0) {
-    const managerGrossAmount = saleAmount * (manager.commission_percent / 100);
-    companyNetAmount -= managerGrossAmount;
+    const managerGrossAmount = Math.round(companyAfterAdmin * (manager.commission_percent / 100) * 100) / 100;
+    companyNetAmount = Math.round((companyAfterAdmin - managerGrossAmount) * 100) / 100;
     result.managerId = manager.id;
     result.managerPercent = manager.commission_percent;
-    result.managerGrossAmount = Math.round(managerGrossAmount * 100) / 100;
-    result.managerNetAmount = result.managerGrossAmount;
+    result.managerGrossAmount = managerGrossAmount;
+    result.managerNetAmount = managerGrossAmount;
     result.ratesSnapshot.manager_percent = manager.commission_percent;
     result.ratesSnapshot.manager_name = manager.name;
 
-    // Cambista taxa (se existir, baseado no valor do gerente)
+    // 4. Cambista: percentual sobre o valor do gerente
     if (cambista && cambista.commission_percent > 0) {
-      const cambistaAmount = managerGrossAmount * (cambista.commission_percent / 100);
+      const cambistaAmount = Math.round(managerGrossAmount * (cambista.commission_percent / 100) * 100) / 100;
       result.cambistaId = cambista.id;
       result.cambistaPercentOfManager = cambista.commission_percent;
-      result.cambistaAmount = Math.round(cambistaAmount * 100) / 100;
+      result.cambistaAmount = cambistaAmount;
       result.managerNetAmount = Math.round((managerGrossAmount - cambistaAmount) * 100) / 100;
       result.ratesSnapshot.cambista_percent_of_manager = cambista.commission_percent;
       result.ratesSnapshot.cambista_name = cambista.name;
     }
   }
 
-  result.companyNetAmount = Math.round(companyNetAmount * 100) / 100;
+  result.companyNetAmount = companyNetAmount;
   return result;
 }
 

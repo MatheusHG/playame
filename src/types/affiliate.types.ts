@@ -100,42 +100,38 @@ export function calculateCommissions(
   managerPercent?: number,
   cambistaPercentOfManager?: number
 ): CommissionCalculation {
-  // Super-Admin taxa (sempre primeiro)
-  const superAdminAmount = saleAmount * (superAdminPercent / 100);
-  let companyNetAmount = saleAmount - superAdminAmount;
+  // 1. Taxa administrativa do sistema (Super-Admin)
+  const superAdminAmount = Math.round(saleAmount * (superAdminPercent / 100) * 100) / 100;
+  // 2. Valor líquido da empresa (após taxa admin)
+  const companyAfterAdmin = Math.round((saleAmount - superAdminAmount) * 100) / 100;
 
   let managerGrossAmount: number | undefined;
   let cambistaAmount: number | undefined;
   let managerNetAmount: number | undefined;
+  let companyNetAmount = companyAfterAdmin;
 
-  // Gerente taxa (se existir)
+  // 3. Gerente: percentual sobre o valor líquido da empresa (após taxa admin)
   if (managerPercent !== undefined && managerPercent > 0) {
-    managerGrossAmount = saleAmount * (managerPercent / 100);
-    companyNetAmount -= managerGrossAmount;
+    managerGrossAmount = Math.round(companyAfterAdmin * (managerPercent / 100) * 100) / 100;
+    companyNetAmount = Math.round((companyAfterAdmin - managerGrossAmount) * 100) / 100;
     managerNetAmount = managerGrossAmount;
 
-    // Cambista taxa (se existir, baseado no valor do gerente)
+    // 4. Cambista: percentual sobre o valor do gerente
     if (cambistaPercentOfManager !== undefined && cambistaPercentOfManager > 0) {
-      cambistaAmount = managerGrossAmount * (cambistaPercentOfManager / 100);
-      managerNetAmount = managerGrossAmount - cambistaAmount;
+      cambistaAmount = Math.round(managerGrossAmount * (cambistaPercentOfManager / 100) * 100) / 100;
+      managerNetAmount = Math.round((managerGrossAmount - cambistaAmount) * 100) / 100;
     }
   }
 
   return {
     saleAmount,
     superAdminPercent,
-    superAdminAmount: Math.round(superAdminAmount * 100) / 100,
-    companyNetAmount: Math.round(companyNetAmount * 100) / 100,
+    superAdminAmount,
+    companyNetAmount,
     managerPercent,
-    managerGrossAmount: managerGrossAmount !== undefined 
-      ? Math.round(managerGrossAmount * 100) / 100 
-      : undefined,
+    managerGrossAmount,
     cambistaPercentOfManager,
-    cambistaAmount: cambistaAmount !== undefined 
-      ? Math.round(cambistaAmount * 100) / 100 
-      : undefined,
-    managerNetAmount: managerNetAmount !== undefined 
-      ? Math.round(managerNetAmount * 100) / 100 
-      : undefined,
+    cambistaAmount,
+    managerNetAmount,
   };
 }
