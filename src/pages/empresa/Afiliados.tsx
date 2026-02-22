@@ -69,7 +69,7 @@ export default function EmpresaAfiliados() {
               <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 rounded-lg bg-destructive/10">
-                    <p className="text-sm text-muted-foreground">Taxa Super-Admin</p>
+                    <p className="text-sm text-muted-foreground">Taxa Administrativa</p>
                     <p className="text-2xl font-bold text-destructive">
                       R$ {calculation.superAdminAmount.toFixed(2)}
                     </p>
@@ -82,7 +82,7 @@ export default function EmpresaAfiliados() {
                       R$ {calculation.managerGrossAmount?.toFixed(2) || '0.00'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {sampleManagerPercent}% da venda
+                      {sampleManagerPercent}% do líquido da empresa
                     </p>
                   </div>
 
@@ -112,23 +112,23 @@ export default function EmpresaAfiliados() {
                       1. Venda: <strong>R$ {sampleSale.toFixed(2)}</strong>
                     </li>
                     <li>
-                      2. Super-Admin ({superAdminPercent}%):{' '}
+                      2. Taxa Admin ({superAdminPercent}% da venda):{' '}
                       <strong>- R$ {calculation.superAdminAmount.toFixed(2)}</strong>
                     </li>
                     <li>
-                      3. Restante para empresa: R$ {(sampleSale - calculation.superAdminAmount).toFixed(2)}
+                      3. Valor para empresa (após taxa): <strong>R$ {(sampleSale - calculation.superAdminAmount).toFixed(2)}</strong>
                     </li>
                     <li>
-                      4. Gerente ({sampleManagerPercent}% da venda):{' '}
+                      4. Gerente ({sampleManagerPercent}% do valor da empresa):{' '}
                       <strong>- R$ {calculation.managerGrossAmount?.toFixed(2)}</strong>
                     </li>
                     <li>
-                      5. Empresa após gerente: R$ {calculation.companyNetAmount.toFixed(2)}
+                      5. Empresa (líquido final): <strong>R$ {calculation.companyNetAmount.toFixed(2)}</strong>
                     </li>
-                    <li className="pl-4 text-muted-foreground">
-                      • Operador ({sampleCambistaPercent}% do gerente): R$ {calculation.cambistaAmount?.toFixed(2)}
+                    <li className="pl-4 text-muted-foreground border-l-2 border-muted-foreground/20 ml-2">
+                      • Operador ({sampleCambistaPercent}% do valor do gerente): R$ {calculation.cambistaAmount?.toFixed(2)}
                     </li>
-                    <li className="pl-4 text-muted-foreground">
+                    <li className="pl-4 text-muted-foreground border-l-2 border-muted-foreground/20 ml-2">
                       • Gerente (líquido): R$ {calculation.managerNetAmount?.toFixed(2)}
                     </li>
                   </ul>
