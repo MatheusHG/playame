@@ -15,6 +15,8 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { ResetPasswordDialog } from '@/components/empresa/ResetPasswordDialog';
+import { SaleDetailDialog } from '@/components/empresa/SaleDetailDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useAffiliates } from '@/hooks/useAffiliates';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -35,6 +37,8 @@ import {
   KeyRound,
   Link2,
   Copy,
+  MoreHorizontal,
+  Eye,
 } from 'lucide-react';
 
 export default function AfiliadoDetalhe() {
@@ -50,6 +54,7 @@ export default function AfiliadoDetalhe() {
   });
   const [editMode, setEditMode] = useState(false);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [saleDetailTicketId, setSaleDetailTicketId] = useState<string | null>(null);
   const [editData, setEditData] = useState({
     name: '',
     phone: '',
@@ -304,6 +309,25 @@ export default function AfiliadoDetalhe() {
           </Badge>
         );
       },
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      render: (item) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setSaleDetailTicketId(item.id)}>
+              <Eye className="h-4 w-4 mr-2" />
+              Ver detalhes
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
     },
   ];
 
@@ -620,6 +644,12 @@ export default function AfiliadoDetalhe() {
           onOpenChange={setResetPasswordOpen}
           affiliate={affiliate}
           companySlug={slug || ''}
+        />
+
+        <SaleDetailDialog
+          open={!!saleDetailTicketId}
+          onOpenChange={(open) => { if (!open) setSaleDetailTicketId(null); }}
+          ticketId={saleDetailTicketId}
         />
       </div>
     </EmpresaLayout>
