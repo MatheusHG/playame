@@ -269,6 +269,25 @@ export default function AfiliadoDetalhe() {
         );
       },
     },
+    {
+      key: 'actions',
+      header: 'Ações',
+      render: (item) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setSaleDetailTicketId(item.ticket_id)}>
+              <Eye className="h-4 w-4 mr-2" />
+              Ver detalhes
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
   ];
 
   // Sales table columns
