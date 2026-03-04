@@ -66,13 +66,25 @@ export function tenantResolver() {
     try {
       const host = normalizeHost(req.hostname || req.headers.host || '');
 
+      // For cross-origin requests, the frontend domain is in the Origin header.
+      // req.hostname is the API server domain, not the frontend domain.
+      const origin = req.headers.origin;
+      const originHost = origin ? normalizeHost(new URL(origin).hostname) : null;
+
+      // Determine the domain to resolve: prefer Origin (frontend domain) over Host (API domain)
+      const platformDomain = normalizeHost(env.PLATFORM_DOMAIN);
+      const platformBase = platformDomain.replace(/^api\./, '');
+      const isApiHost = host === platformDomain || host.startsWith('api.');
+      const domainToResolve = isApiHost && originHost ? originHost : host;
+
       // Skip tenant resolution for platform domain (super-admin)
-      if (host === normalizeHost(env.PLATFORM_DOMAIN)) {
+      // Matches both "api.playame.com.br" and "playame.com.br"
+      if (domainToResolve === platformDomain || domainToResolve === platformBase) {
         return next();
       }
 
       // Skip for localhost without custom domain setup (development)
-      if (host === 'localhost' || host === '127.0.0.1') {
+      if (domainToResolve === 'localhost' || domainToResolve === '127.0.0.1') {
         // In dev, allow X-Tenant-ID header as fallback
         const tenantIdHeader = req.headers['x-tenant-id'] as string | undefined;
         if (tenantIdHeader) {
@@ -91,8 +103,8 @@ export function tenantResolver() {
         return next();
       }
 
-      // Resolve tenant from domain
-      const tenant = await findTenantByDomain(host);
+      // Resolve tenant from frontend domain
+      const tenant = await findTenantByDomain(domainToResolve);
       if (tenant) {
         req.tenantId = tenant.id;
         req.tenant = tenant;
