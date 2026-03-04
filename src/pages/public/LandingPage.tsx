@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
@@ -24,27 +24,20 @@ type PaymentNetAmountRow = {
 };
 
 export default function LandingPage() {
-  const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [selectedRaffleId, setSelectedRaffleId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
-
   // Capture ref from URL and store in localStorage for affiliate tracking
   useEffect(() => {
     const refCode = searchParams.get('ref');
-    if (refCode && slug) {
-      localStorage.setItem(`affiliate_ref_${slug}`, refCode);
+    if (refCode && company?.id) {
+      localStorage.setItem(`affiliate_ref_${company.id}`, refCode);
     }
-  }, [searchParams, slug]);
+  }, [searchParams, company?.id]);
 
   useCompanyBranding();
 
@@ -140,7 +133,6 @@ export default function LandingPage() {
               <>
                 {player && (
                   <PlayerAccountMenu
-                    slug={slug!}
                     player={player}
                     onLogout={logout}
                     variant="secondary"
@@ -283,7 +275,7 @@ export default function LandingPage() {
                 asChild
                 className="bg-white text-black hover:bg-white/90 shadow-lg shadow-black/10 font-semibold px-8 h-12 text-base"
               >
-                <Link to={`/empresa/${slug}/sorteio/${raffles[0].id}`}>
+                <Link to={`/sorteio/${raffles[0].id}`}>
                   Ver Sorteios
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
@@ -321,7 +313,6 @@ export default function LandingPage() {
                   <RafflePublicCard
                     key={raffle.id}
                     raffle={raffle}
-                    companySlug={slug!}
                   />
                 ))}
               </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Home, Hash, Trophy, Users, Phone, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MeusNumerosModal } from './MeusNumerosModal';
@@ -18,7 +18,6 @@ const navItems = [
 ];
 
 export function PublicNavMenu({ primaryColor = '#3B82F6', companyId }: PublicNavMenuProps) {
-  const { slug } = useParams<{ slug: string }>();
   const [meusNumerosOpen, setMeusNumerosOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -48,7 +47,7 @@ export function PublicNavMenu({ primaryColor = '#3B82F6', companyId }: PublicNav
               return (
                 <Link
                   key={item.key}
-                  to={`/empresa/${slug}${item.path ? `/${item.path}` : ''}`}
+                  to={item.path ? `/${item.path}` : '/'}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md transition-colors"
                 >
                   {/* <Icon className="h-4 w-4" /> */}
@@ -94,7 +93,7 @@ export function PublicNavMenu({ primaryColor = '#3B82F6', companyId }: PublicNav
                 return (
                   <Link
                     key={item.key}
-                    to={`/empresa/${slug}${item.path ? `/${item.path}` : ''}`}
+                    to={item.path ? `/${item.path}` : '/'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                   >
@@ -111,7 +110,6 @@ export function PublicNavMenu({ primaryColor = '#3B82F6', companyId }: PublicNav
       <MeusNumerosModal
         open={meusNumerosOpen}
         onOpenChange={setMeusNumerosOpen}
-        slug={slug!}
         companyId={companyId}
       />
     </>

@@ -7,7 +7,7 @@ import { Trophy, Building2, Users, LogIn } from 'lucide-react';
 const Index = () => {
   const { user, isSuperAdmin, roles } = useAuth();
 
-  // Get company slug from roles if user is not super admin
+  // Check if user has a company role
   const companyRole = roles.find(r => r.company_id && (r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR'));
 
   return (
@@ -74,7 +74,7 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Link to={`/empresa/${companyRole.company_id}/dashboard`}>
+                  <Link to="/admin/dashboard">
                     <Button className="w-full">Acessar Empresa</Button>
                   </Link>
                 </CardContent>

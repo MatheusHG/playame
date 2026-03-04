@@ -5,6 +5,7 @@ import * as companyService from '../services/company.service.js';
 import * as ticketService from '../services/ticket.service.js';
 import { AuthRequest } from '../types/index.js';
 import { prisma } from '../config/database.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.delete('/:id', authMiddleware, requireSuperAdmin(), async (req: AuthReque
 // GET /:companyId/stats - auth + company access
 router.get('/:companyId/stats', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
 
     const [raffles, tickets, payments, players] = await Promise.all([
       prisma.raffles.count({ where: { company_id: companyId } }),
@@ -67,7 +68,7 @@ router.get('/:companyId/stats', authMiddleware, requireCompanyAccess(), async (r
 // GET /:companyId/dashboard - rich dashboard data
 router.get('/:companyId/dashboard', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const { from, to } = req.query;
     const now = new Date();
     const rangeFrom = from ? new Date(from as string) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
@@ -211,7 +212,7 @@ router.get('/:companyId/dashboard', authMiddleware, requireCompanyAccess(), asyn
 // GET /:companyId/players - auth + company access
 router.get('/:companyId/players', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const players = await prisma.players.findMany({
       where: { company_id: companyId, deleted_at: null },
       orderBy: { created_at: 'desc' },
@@ -223,7 +224,7 @@ router.get('/:companyId/players', authMiddleware, requireCompanyAccess(), async 
 // GET /:companyId/players/ticket-counts - auth + company access
 router.get('/:companyId/players/ticket-counts', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const counts = await prisma.tickets.groupBy({
       by: ['player_id'],
       where: {
@@ -244,7 +245,7 @@ router.get('/:companyId/players/ticket-counts', authMiddleware, requireCompanyAc
 // GET /:companyId/players/:playerId - admin: get single player detail
 router.get('/:companyId/players/:playerId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const playerId = req.params.playerId as string;
     const player = await prisma.players.findFirst({
       where: { id: playerId, company_id: companyId },
@@ -260,7 +261,7 @@ router.get('/:companyId/players/:playerId', authMiddleware, requireCompanyAccess
 // GET /:companyId/players/:playerId/tickets - admin: get player's tickets
 router.get('/:companyId/players/:playerId/tickets', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const playerId = req.params.playerId as string;
     const result = await ticketService.getByPlayer(playerId, companyId);
     res.json(result);
@@ -270,7 +271,7 @@ router.get('/:companyId/players/:playerId/tickets', authMiddleware, requireCompa
 // GET /:companyId/players/:playerId/payments - admin: get player's payments
 router.get('/:companyId/players/:playerId/payments', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req);
     const playerId = req.params.playerId as string;
     const payments = await prisma.payments.findMany({
       where: { player_id: playerId, company_id: companyId },

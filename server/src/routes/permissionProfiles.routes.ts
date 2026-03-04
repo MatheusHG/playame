@@ -4,6 +4,7 @@ import { requireCompanyAccess } from '../middleware/roleGuard.js';
 import { prisma } from '../config/database.js';
 import { AuthRequest } from '../types/index.js';
 import * as audit from '../services/audit.service.js';
+import { getCompanyId } from '../utils/tenant.js';
 import { buildCreateChanges, buildDeleteChanges, buildUpdateChanges } from '../utils/auditChanges.js';
 
 const PROFILE_FIELDS = ['name', 'description', 'affiliate_type', 'permissions', 'is_default'];
@@ -14,7 +15,7 @@ const router = Router();
 router.get('/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
     const profiles = await prisma.permission_profiles.findMany({
-      where: { company_id: req.params.companyId as string },
+      where: { company_id: getCompanyId(req) },
       orderBy: { created_at: 'desc' },
     });
     res.json(profiles);

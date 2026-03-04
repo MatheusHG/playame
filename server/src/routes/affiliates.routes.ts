@@ -5,13 +5,14 @@ import * as affiliateService from '../services/affiliate.service.js';
 import * as audit from '../services/audit.service.js';
 import { AuthRequest } from '../types/index.js';
 import { prisma } from '../config/database.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
 // GET /company/:companyId - auth + company access
 router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const result = await affiliateService.getByCompany(req.params.companyId as string);
+    const result = await affiliateService.getByCompany(getCompanyId(req));
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -637,7 +638,7 @@ router.get('/:id/dashboard', authMiddleware, async (req: AuthRequest, res, next)
 // POST /company/:companyId - auth + company admin
 router.post('/company/:companyId', authMiddleware, requireCompanyAdmin(), async (req: AuthRequest, res, next) => {
   try {
-    const result = await affiliateService.create(req.params.companyId as string, req.body, req.user!.userId);
+    const result = await affiliateService.create(getCompanyId(req), req.body, req.user!.userId);
     res.status(201).json(result);
   } catch (err) { next(err); }
 });

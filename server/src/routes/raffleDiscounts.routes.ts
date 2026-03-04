@@ -10,7 +10,7 @@ const router = Router();
 
 /** Resolve companyId from user roles or from the raffle (for SUPER_ADMIN) */
 async function resolveCompanyId(req: AuthRequest, raffleId: string): Promise<string> {
-    const fromRole = req.user!.roles.find(r => r.companyId)?.companyId;
+    const fromRole = (req as any).tenantId || req.user!.roles.find(r => r.companyId)?.companyId;
     if (fromRole) return fromRole;
 
     // SUPER_ADMIN doesn't have a companyId in roles – look up from the raffle

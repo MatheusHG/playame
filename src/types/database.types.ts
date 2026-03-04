@@ -16,6 +16,7 @@ export interface Company {
   id: string;
   name: string;
   slug: string;
+  custom_domain: string | null;
   logo_url: string | null;
   primary_color: string;
   secondary_color: string;
@@ -250,6 +251,7 @@ export interface TenantContextType {
   company: Company | null;
   loading: boolean;
   error: string | null;
+  /** @deprecated Use domain-based resolution. Kept for backwards compatibility. */
   setCompanySlug: (slug: string) => void;
   refetchCompany: () => Promise<void>;
 }

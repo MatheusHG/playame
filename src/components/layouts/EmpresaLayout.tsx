@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { ReactNode, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
 import { Button } from '@/components/ui/button';
@@ -39,8 +39,7 @@ const SIDEBAR_KEY = 'empresa-sidebar-collapsed';
 
 export function EmpresaLayout({ children, title, description, headerActions }: EmpresaLayoutProps) {
   const { signOut, user, isAdminEmpresa, isSuperAdmin } = useAuth();
-  const { slug } = useParams<{ slug: string }>();
-  const { company, loading, setCompanySlug } = useTenant();
+  const { company, loading } = useTenant();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -50,13 +49,6 @@ export function EmpresaLayout({ children, title, description, headerActions }: E
     return false;
   });
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
-  const publicCompanyIdentifier = company?.id ?? slug ?? company?.slug;
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   useCompanyBranding();
 
@@ -71,16 +63,16 @@ export function EmpresaLayout({ children, title, description, headerActions }: E
   const isAdmin = company ? isAdminEmpresa(company.id) : false;
 
   const navigation = [
-    { name: 'Dashboard', href: `/empresa/${slug}/dashboard`, icon: LayoutDashboard, show: true },
-    { name: 'Sorteios', href: `/empresa/${slug}/sorteios`, icon: Trophy, show: true },
-    { name: 'Venda de Rua', href: `/empresa/${slug}/venda-rua`, icon: Store, show: isAdmin },
-    { name: 'Jogadores', href: `/empresa/${slug}/jogadores`, icon: Users, show: true },
-    { name: 'Afiliados', href: `/empresa/${slug}/afiliados`, icon: Network, show: isAdmin },
-    { name: 'Financeiro', href: `/empresa/${slug}/financeiro`, icon: DollarSign, show: isAdmin },
-    { name: 'Webhook Logs', href: `/empresa/${slug}/webhook-logs`, icon: Webhook, show: isAdmin },
-    { name: 'Regulamento', href: `/empresa/${slug}/regulamento`, icon: ScrollText, show: isAdmin },
-    { name: 'Auditoria', href: `/empresa/${slug}/auditoria`, icon: ClipboardList, show: isAdmin },
-    { name: 'Personalização', href: `/empresa/${slug}/configuracoes`, icon: Settings, show: isAdmin },
+    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, show: true },
+    { name: 'Sorteios', href: '/admin/sorteios', icon: Trophy, show: true },
+    { name: 'Venda de Rua', href: '/admin/venda-rua', icon: Store, show: isAdmin },
+    { name: 'Jogadores', href: '/admin/jogadores', icon: Users, show: true },
+    { name: 'Afiliados', href: '/admin/afiliados', icon: Network, show: isAdmin },
+    { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, show: isAdmin },
+    { name: 'Webhook Logs', href: '/admin/webhook-logs', icon: Webhook, show: isAdmin },
+    { name: 'Regulamento', href: '/admin/regulamento', icon: ScrollText, show: isAdmin },
+    { name: 'Auditoria', href: '/admin/auditoria', icon: ClipboardList, show: isAdmin },
+    { name: 'Personalização', href: '/admin/configuracoes', icon: Settings, show: isAdmin },
   ].filter(item => item.show);
 
   if (loading) {
@@ -335,14 +327,12 @@ export function EmpresaLayout({ children, title, description, headerActions }: E
                 <span className="hidden sm:inline ml-2">Buscar Cartela</span>
               </Button>
               {headerActions}
-              {publicCompanyIdentifier && (
-                <Button asChild variant="outline" size="sm" className="rounded-xl">
-                  <a href={`/empresa/${publicCompanyIdentifier}`} target="_blank" rel="noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                    <span className="hidden sm:inline ml-2">Abrir site</span>
-                  </a>
-                </Button>
-              )}
+              <Button asChild variant="outline" size="sm" className="rounded-xl">
+                <a href="/" target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-2">Abrir site</span>
+                </a>
+              </Button>
             </div>
           </div>
         </header>

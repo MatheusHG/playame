@@ -1,4 +1,3 @@
-import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
@@ -19,12 +18,11 @@ import {
 } from 'lucide-react';
 
 export default function MeuLink() {
-  const { slug } = useParams<{ slug: string }>();
   const { affiliate } = useAffiliate();
   const { toast } = useToast();
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const fullLink = `${baseUrl}/empresa/${slug}?ref=${affiliate?.link_code}`;
+  const fullLink = `${baseUrl}/?ref=${affiliate?.link_code}`;
 
   // Fetch stats for this link
   const { data: linkStats } = useQuery({

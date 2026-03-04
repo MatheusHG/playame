@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -60,9 +60,9 @@ type PaymentRow = Payment & {
 };
 
 export default function JogadorDetalhe() {
-  const { slug, playerId } = useParams<{ slug: string; playerId: string }>();
+  const { playerId } = useParams<{ playerId: string }>();
   const navigate = useNavigate();
-  const { company, setCompanySlug } = useTenant();
+  const { company } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
@@ -175,15 +175,13 @@ export default function JogadorDetalhe() {
   const clearFinanceFilters = () => { setFilterRaffleId(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterStatus(''); };
   const hasActiveFilters = filterRaffleId || filterDateFrom || filterDateTo || filterStatus;
 
-  useEffect(() => { if (slug) setCompanySlug(slug); }, [slug, setCompanySlug]);
-
   if (playerLoading || !company) return <LoadingState fullScreen message="Carregando..." />;
   if (!player) {
     return (
       <EmpresaLayout title="Jogador não encontrado">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Jogador não encontrado.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate(`/empresa/${slug}/jogadores`)}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/jogadores')}>
             <ArrowLeft className="h-4 w-4 mr-2" />Voltar para Jogadores
           </Button>
         </div>
@@ -198,7 +196,7 @@ export default function JogadorDetalhe() {
     <EmpresaLayout title={player.name} description="Perfil completo do jogador">
       <div className="space-y-5">
         {/* Back */}
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/empresa/${slug}/jogadores`)}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/admin/jogadores')}>
           <ArrowLeft className="h-4 w-4 mr-2" />Voltar para Jogadores
         </Button>
 

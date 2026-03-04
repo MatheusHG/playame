@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -84,11 +83,8 @@ interface EmpresaDashboardData {
 }
 
 export default function EmpresaDashboard() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
-
-  useEffect(() => { if (slug) setCompanySlug(slug); }, [slug, setCompanySlug]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['empresa-dashboard', company?.id, dateRange.from.toISOString(), dateRange.to.toISOString()],

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import authRoutes from './auth.routes.js';
 import playerRoutes from './player.routes.js';
 import companyRoutes from './companies.routes.js';
@@ -20,8 +20,18 @@ import adminRoutes from './admin.routes.js';
 import playerAuthRoutes from './playerAuth.routes.js';
 import permissionProfileRoutes from './permissionProfiles.routes.js';
 import streetSaleRoutes from './streetSales.routes.js';
+import { AuthRequest } from '../types/index.js';
 
 const apiRouter = Router();
+
+// ─── Tenant resolution endpoint ─────────────────────
+// Returns the company resolved from the Host header by tenantResolver middleware
+apiRouter.get('/tenant/resolve', (req: AuthRequest, res: Response) => {
+  if (!req.tenant) {
+    return res.status(404).json({ error: 'Tenant not found for this domain' });
+  }
+  return res.json(req.tenant);
+});
 
 // Mount the Stripe webhook route BEFORE json parsing is applied
 // This route needs raw body for Stripe signature verification

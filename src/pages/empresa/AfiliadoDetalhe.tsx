@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 
 export default function AfiliadoDetalhe() {
-  const { slug, affiliateId } = useParams<{ slug: string; affiliateId: string }>();
+  const { affiliateId } = useParams<{ affiliateId: string }>();
   const navigate = useNavigate();
   const { company } = useTenant();
   const { toast } = useToast();
@@ -285,7 +285,7 @@ export default function AfiliadoDetalhe() {
     <EmpresaLayout title={affiliate.name} description={isManager ? 'Detalhes do Gerente' : 'Detalhes do Operador'}>
       <div className="space-y-5">
         {/* Back */}
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/empresa/${slug}/afiliados`)}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/admin/afiliados')}>
           <ArrowLeft className="h-4 w-4 mr-2" />Voltar para Afiliados
         </Button>
 
@@ -410,7 +410,7 @@ export default function AfiliadoDetalhe() {
           )}
 
           {/* Affiliate Link */}
-          {!editMode && affiliate.link_code && slug && (
+          {!editMode && affiliate.link_code && (
             <div className="border-t px-5 sm:px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground flex-shrink-0">
@@ -418,10 +418,10 @@ export default function AfiliadoDetalhe() {
                 </div>
                 <div className="flex flex-1 items-center gap-2 min-w-0">
                   <code className="flex-1 min-w-0 text-xs sm:text-sm bg-muted px-3 py-2 rounded-lg border break-all truncate">
-                    {typeof window !== 'undefined' ? `${window.location.origin}/empresa/${slug}?ref=${affiliate.link_code}` : `/empresa/${slug}?ref=${affiliate.link_code}`}
+                    {typeof window !== 'undefined' ? `${window.location.origin}/?ref=${affiliate.link_code}` : `/?ref=${affiliate.link_code}`}
                   </code>
                   <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => {
-                    const url = `${window.location.origin}/empresa/${slug}?ref=${affiliate.link_code}`;
+                    const url = `${window.location.origin}/?ref=${affiliate.link_code}`;
                     navigator.clipboard.writeText(url);
                     toast({ title: 'Link copiado!' });
                   }}>
@@ -490,7 +490,7 @@ export default function AfiliadoDetalhe() {
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {cambistas.map((cambista: any) => (
-                      <Link key={cambista.id} to={`/empresa/${slug}/afiliados/${cambista.id}`}
+                      <Link key={cambista.id} to={`/admin/afiliados/${cambista.id}`}
                         className="rounded-xl border bg-card p-4 hover:shadow-md transition-all hover:border-primary/30 block">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
@@ -521,7 +521,7 @@ export default function AfiliadoDetalhe() {
           </Tabs>
         </Card>
 
-        <ResetPasswordDialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen} affiliate={affiliate} companySlug={slug || ''} />
+        <ResetPasswordDialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen} affiliate={affiliate} companySlug={company?.slug || ''} />
         <SaleDetailDialog open={!!saleDetailTicketId} onOpenChange={(open) => { if (!open) setSaleDetailTicketId(null); }} ticketId={saleDetailTicketId} />
       </div>
     </EmpresaLayout>

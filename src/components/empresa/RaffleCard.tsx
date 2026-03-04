@@ -34,7 +34,6 @@ import type { RaffleStatus } from '@/types/database.types';
 
 interface RaffleCardProps {
   raffle: RaffleWithTiers;
-  slug: string;
   primaryColor?: string;
   onChangeStatus: (id: string, status: RaffleStatus) => void;
   onDelete: (id: string) => void;
@@ -50,7 +49,7 @@ const statusConfig: Record<
   finished: { label: 'Finalizado', variant: 'destructive', bg: '#FEE2E2', color: '#DC2626' },
 };
 
-export function RaffleCard({ raffle, slug, primaryColor, onChangeStatus, onDelete }: RaffleCardProps) {
+export function RaffleCard({ raffle, primaryColor, onChangeStatus, onDelete }: RaffleCardProps) {
   const status = raffle.status || 'draft';
   const config = statusConfig[status];
 
@@ -62,7 +61,7 @@ export function RaffleCard({ raffle, slug, primaryColor, onChangeStatus, onDelet
     <div className="rounded-2xl border bg-card hover:shadow-lg transition-all overflow-hidden">
       {/* Image header */}
       {raffle.image_url ? (
-        <Link to={`/empresa/${slug}/sorteios/${raffle.id}`}>
+        <Link to={`/admin/sorteios/${raffle.id}`}>
           <div className="relative h-36 overflow-hidden">
             <img
               src={raffle.image_url}
@@ -84,7 +83,7 @@ export function RaffleCard({ raffle, slug, primaryColor, onChangeStatus, onDelet
         <div className="px-5 pt-5 pb-2">
           <div className="flex items-start justify-between gap-2">
             <Link
-              to={`/empresa/${slug}/sorteios/${raffle.id}`}
+              to={`/admin/sorteios/${raffle.id}`}
               className="flex-1 min-w-0"
             >
               <div className="flex items-center gap-3 mb-1">
@@ -199,13 +198,13 @@ export function RaffleCard({ raffle, slug, primaryColor, onChangeStatus, onDelet
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
                 <DropdownMenuItem asChild>
-                  <Link to={`/empresa/${slug}/sorteios/${raffle.id}`}>
+                  <Link to={`/admin/sorteios/${raffle.id}`}>
                     <Eye className="mr-2 h-4 w-4" />
                     Visualizar
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to={`/empresa/${slug}/sorteios/${raffle.id}/editar`}>
+                  <Link to={`/admin/sorteios/${raffle.id}/editar`}>
                     <Edit className="mr-2 h-4 w-4" />
                     Editar
                   </Link>
@@ -241,7 +240,7 @@ export function RaffleCard({ raffle, slug, primaryColor, onChangeStatus, onDelet
         {/* CTA for active raffles */}
         {status === 'active' && (
           <Button asChild size="sm" className="w-full mt-3 rounded-xl">
-            <Link to={`/empresa/${slug}/sorteios/${raffle.id}`}>
+            <Link to={`/admin/sorteios/${raffle.id}`}>
               Gerenciar
               <ArrowRight className="ml-2 h-3.5 w-3.5" />
             </Link>

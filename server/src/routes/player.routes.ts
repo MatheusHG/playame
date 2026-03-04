@@ -14,13 +14,15 @@ router.post('/auth', rateLimit('player_auth'), async (req, res, next) => {
   try {
     const { action, ...data } = req.body;
 
+    const companyId = (req as any).tenantId || data.companyId;
+
     let result;
     switch (action) {
       case 'login':
-        result = await playerService.loginPlayer(data.companyId, data.cpf, data.password);
+        result = await playerService.loginPlayer(companyId, data.cpf, data.password);
         break;
       case 'register':
-        result = await playerService.registerPlayer(data.companyId, data.cpf, data.password, data.name, data.phone, data.city);
+        result = await playerService.registerPlayer(companyId, data.cpf, data.password, data.name, data.phone, data.city);
         break;
       case 'changePassword':
         result = await playerService.changePassword(data.playerId, data.currentPassword, data.newPassword);
@@ -41,7 +43,7 @@ router.post('/auth', rateLimit('player_auth'), async (req, res, next) => {
 router.get('/:id/tickets', playerAuthMiddleware, async (req: PlayerAuthRequest, res, next) => {
   try {
     const playerId = req.params.id as string;
-    const companyId = (req.query.companyId as string) || req.player!.companyId;
+    const companyId = (req as any).tenantId || (req.query.companyId as string) || req.player!.companyId;
     const include = (req.query.include as string) || '';
 
     const includeRaffle = include.includes('raffle');
@@ -75,7 +77,7 @@ router.get('/:id/tickets', playerAuthMiddleware, async (req: PlayerAuthRequest, 
 router.get('/:id/payments', playerAuthMiddleware, async (req: PlayerAuthRequest, res, next) => {
   try {
     const playerId = req.params.id as string;
-    const companyId = (req.query.companyId as string) || req.player!.companyId;
+    const companyId = (req as any).tenantId || (req.query.companyId as string) || req.player!.companyId;
     const include = (req.query.include as string) || '';
 
     const includeRaffle = include.includes('raffle');

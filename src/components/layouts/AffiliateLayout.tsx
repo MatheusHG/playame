@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ReactNode, useEffect, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,6 @@ interface AffiliateLayoutProps {
 const SIDEBAR_KEY = 'affiliate-sidebar-collapsed';
 
 export function AffiliateLayout({ children, title, description }: AffiliateLayoutProps) {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { affiliate, loading, error, signOut, hasPermission, refetch } = useAffiliate();
@@ -59,10 +58,10 @@ export function AffiliateLayout({ children, title, description }: AffiliateLayou
       if (token) {
         refetch();
       } else {
-        navigate(`/afiliado/${slug}/login`);
+        navigate('/afiliado/login');
       }
     }
-  }, [loading, affiliate, error, navigate, slug, refetch]);
+  }, [loading, affiliate, error, navigate, refetch]);
 
   const toggleCollapsed = () => {
     setCollapsed(prev => {
@@ -83,7 +82,7 @@ export function AffiliateLayout({ children, title, description }: AffiliateLayou
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Acesso Negado</h1>
           <p className="text-muted-foreground mb-4">{error || 'Você não tem permissão para acessar este portal.'}</p>
-          <Button onClick={() => navigate(`/afiliado/${slug}/login`)} className="rounded-xl">
+          <Button onClick={() => navigate('/afiliado/login')} className="rounded-xl">
             Fazer Login
           </Button>
         </div>
@@ -92,7 +91,7 @@ export function AffiliateLayout({ children, title, description }: AffiliateLayou
   }
 
   const isManager = affiliate.type === 'manager';
-  const baseUrl = `/afiliado/${slug}`;
+  const baseUrl = '/afiliado';
 
   const navItems = [
     { href: `${baseUrl}/dashboard`, label: 'Dashboard', icon: LayoutDashboard, show: true },
@@ -106,7 +105,7 @@ export function AffiliateLayout({ children, title, description }: AffiliateLayou
 
   const handleSignOut = async () => {
     await signOut();
-    navigate(`/afiliado/${slug}/login`);
+    navigate('/afiliado/login');
   };
 
   const primaryColor = affiliate.company.primary_color || '#3B82F6';

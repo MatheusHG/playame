@@ -4,6 +4,7 @@ import { requireCompanyAccess, requireCompanyAdmin } from '../middleware/roleGua
 import * as ticketService from '../services/ticket.service.js';
 import * as rankingService from '../services/ranking.service.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.get('/lookup-by-cpf/:companyId', async (req, res, next) => {
       res.status(400).json({ error: 'CPF is required' });
       return;
     }
-    const result = await ticketService.lookupByCpf(req.params.companyId as string, cpf);
+    const result = await ticketService.lookupByCpf(getCompanyId(req as any), cpf);
     if (!result) {
       res.status(404).json({ error: 'Player not found' });
       return;
@@ -52,7 +53,7 @@ router.get('/company/:companyId/search', authMiddleware, requireCompanyAccess(),
       res.status(400).json({ error: 'Ref must be at least 3 characters' });
       return;
     }
-    const result = await ticketService.searchByRefGlobal(req.params.companyId as string, ref);
+    const result = await ticketService.searchByRefGlobal(getCompanyId(req), ref);
     if (!result) {
       res.status(404).json({ error: 'Cartela não encontrada' });
       return;

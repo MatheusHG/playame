@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { PublicNavMenu } from '@/components/public/PublicNavMenu';
@@ -10,13 +8,8 @@ import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
 import { usePlayer } from '@/contexts/PlayerContext';
 
 export default function Contato() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
-
-  useEffect(() => {
-    if (slug) setCompanySlug(slug);
-  }, [slug, setCompanySlug]);
 
   useCompanyBranding();
 
@@ -103,7 +96,7 @@ export default function Contato() {
             <span className="text-white font-bold text-xl">{company.name}</span>
           </div>
           {isAuthenticated && player && (
-            <PlayerAccountMenu slug={slug!} player={player} onLogout={logout} variant="secondary" className="bg-white/20 text-white hover:bg-white/30" />
+            <PlayerAccountMenu player={player} onLogout={logout} variant="secondary" className="bg-white/20 text-white hover:bg-white/30" />
           )}
         </div>
       </header>

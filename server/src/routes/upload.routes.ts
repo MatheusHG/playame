@@ -11,7 +11,8 @@ const router = Router();
 router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest, res, next) => {
   try {
     const file = req.file!;
-    const { companyId, folder } = req.body;
+    const companyId = (req as any).tenantId || req.body.companyId;
+    const { folder } = req.body;
     const result = await uploadService.uploadFile(file as { buffer: Buffer; mimetype: string; originalname: string; size: number }, companyId, folder);
     res.json(result);
   } catch (err) { next(err); }

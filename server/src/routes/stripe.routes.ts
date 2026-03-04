@@ -40,7 +40,7 @@ router.post('/keys', authMiddleware, requireSuperAdmin(), async (req: AuthReques
 stripeWebhookRouter.post('/', raw({ type: 'application/json' }), async (req, res, next) => {
   try {
     const signature = req.headers['stripe-signature'] as string;
-    const companyId = (req.query.companyId ?? req.headers['x-company-id']) as string;
+    const companyId = ((req as any).tenantId || req.query.companyId || req.headers['x-company-id']) as string;
     const result = await stripeService.handleWebhook(req.body, signature, companyId);
     res.json(result);
   } catch (err) { next(err); }

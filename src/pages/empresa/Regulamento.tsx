@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -14,19 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function EmpresaRegulamento() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading, refetchCompany } = useTenant();
+  const { company, loading, refetchCompany } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [regulations, setRegulations] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   useEffect(() => {
     if (company) {

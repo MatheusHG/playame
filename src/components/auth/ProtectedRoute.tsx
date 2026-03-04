@@ -30,7 +30,7 @@ export function ProtectedRoute({
 
   // Affiliate users must NOT access empresa/admin routes — redirect to affiliate portal
   if (affiliateInfo && requiredRole && requiredRole !== 'SUPER_ADMIN') {
-    return <Navigate to={`/afiliado/${affiliateInfo.companySlug}/dashboard`} replace />;
+    return <Navigate to="/afiliado/dashboard" replace />;
   }
 
   if (requiredRole) {

@@ -1,9 +1,8 @@
 import { ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useCompanyBranding, useTenant } from '@/contexts/TenantContext';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
 import { PublicFooter } from '@/components/public/PublicFooter';
@@ -19,7 +18,6 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
   const { loading, error } = useTenant();
   const company = useCompanyBranding();
   const { player, isAuthenticated, logout } = usePlayer();
-  const { slug } = useParams<{ slug: string }>();
 
   if (loading) {
     return <LoadingState fullScreen message="Carregando..." />;
@@ -47,7 +45,7 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
       {showHeader && company && (
         <header className="border-b bg-card">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <Link to={`/empresa/${slug}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               {company.logo_url ? (
                 <img
                   src={company.logo_url}
@@ -66,18 +64,18 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
             </Link>
 
             {/* Player Account Link */}
-            {isAuthenticated && player && slug && (
-              <PlayerAccountMenu slug={slug} player={player} onLogout={logout} variant="outline" />
+            {isAuthenticated && player && (
+              <PlayerAccountMenu player={player} onLogout={logout} variant="outline" />
             )}
           </div>
         </header>
       )}
 
-      {isAuthenticated && company?.community_url && company?.community_name && slug && (
+      {isAuthenticated && company?.community_url && company?.community_name && (
         <CommunityChannelBanner
           communityName={company.community_name}
           communityUrl={company.community_url}
-          companySlug={slug}
+          companyId={company.id}
           primaryColor={company.primary_color}
         />
       )}

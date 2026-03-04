@@ -25,6 +25,7 @@ export default function SuperAdminEmpresaConfig() {
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
+    custom_domain: null as string | null,
     logo_url: '',
     primary_color: '#3B82F6',
     secondary_color: '#1E40AF',
@@ -46,6 +47,7 @@ export default function SuperAdminEmpresaConfig() {
       setFormData({
         name: company.name,
         slug: company.slug,
+        custom_domain: company.custom_domain || null,
         logo_url: company.logo_url || '',
         primary_color: company.primary_color,
         secondary_color: company.secondary_color,
@@ -118,7 +120,13 @@ export default function SuperAdminEmpresaConfig() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(`/empresa/${company.slug}/dashboard`)}
+          onClick={() => {
+            if (company?.custom_domain) {
+              window.open(`https://${company.custom_domain}/admin/dashboard`, '_blank');
+            } else {
+              navigate('/admin/dashboard');
+            }
+          }}
         >
           <LogIn className="mr-2 h-4 w-4" />
           Acessar empresa
@@ -166,8 +174,33 @@ export default function SuperAdminEmpresaConfig() {
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  URL: /empresa/{formData.slug}
+                  Slug: {formData.slug}
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom_domain">Domínio Próprio</Label>
+                <Input
+                  id="custom_domain"
+                  value={formData.custom_domain || ''}
+                  onChange={(e) => setFormData({ ...formData, custom_domain: e.target.value || null })}
+                  placeholder="www.empresa.com"
+                />
+                <div className="mt-2 p-3 bg-muted/50 rounded-md border border-dashed">
+                  <p className="text-xs font-medium mb-1.5">Como configurar o domínio:</p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Acesse o painel do seu provedor de domínio (Registro.br, GoDaddy, Hostinger, Cloudflare, etc.)</li>
+                    <li>Vá em <strong>Zona DNS</strong> ou <strong>Gerenciar DNS</strong></li>
+                    <li>Crie um registro do tipo <strong>CNAME</strong>:</li>
+                  </ol>
+                  <div className="mt-1.5 mb-1.5 bg-background rounded p-2 font-mono text-xs border">
+                    <div><span className="text-muted-foreground">Nome/Host:</span> <strong>www</strong></div>
+                    <div><span className="text-muted-foreground">Tipo:</span> <strong>CNAME</strong></div>
+                    <div><span className="text-muted-foreground">Destino/Valor:</span> <strong>{window.location.hostname}</strong></div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    No <strong>Registro.br</strong>: acesse o domínio {'>'} DNS {'>'} Adicionar registro {'>'} CNAME. A propagação pode levar até 24h.
+                  </p>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="logo_url">URL do Logo</Label>

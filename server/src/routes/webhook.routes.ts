@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireCompanyAccess, requireSuperAdmin } from '../middleware/roleGuard.js';
 import { prisma } from '../config/database.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const router = Router();
 router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
     const logs = await prisma.webhook_logs.findMany({
-      where: { company_id: req.params.companyId as string },
+      where: { company_id: getCompanyId(req) },
       orderBy: { created_at: 'desc' },
     });
     res.json(logs);

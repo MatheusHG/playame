@@ -3,13 +3,14 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireCompanyAdmin } from '../middleware/roleGuard.js';
 import * as bannerService from '../services/banner.service.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
 // GET /company/:companyId - public
 router.get('/company/:companyId', async (req, res, next) => {
   try {
-    const result = await bannerService.getByCompany(req.params.companyId as string);
+    const result = await bannerService.getByCompany(getCompanyId(req as any));
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -17,7 +18,7 @@ router.get('/company/:companyId', async (req, res, next) => {
 // POST /company/:companyId - auth + company admin
 router.post('/company/:companyId', authMiddleware, requireCompanyAdmin(), async (req: AuthRequest, res, next) => {
   try {
-    const result = await bannerService.create(req.params.companyId as string, req.body, req.user!.userId);
+    const result = await bannerService.create(getCompanyId(req), req.body, req.user!.userId);
     res.status(201).json(result);
   } catch (err) { next(err); }
 });

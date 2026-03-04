@@ -3,13 +3,14 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireCompanyAccess, requireCompanyAdmin } from '../middleware/roleGuard.js';
 import * as streetSaleService from '../services/streetSale.service.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
 // GET /company/:companyId => List street sales matching filters
 router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
     try {
-        const companyId = req.params.companyId as string;
+        const companyId = getCompanyId(req);
         const { search, raffleId, startDate, endDate } = req.query;
 
         const result = await streetSaleService.getStreetSales({
@@ -35,7 +36,7 @@ router.get('/:paymentId/detail', authMiddleware, requireCompanyAccess(), async (
 // POST /company/:companyId => Create a new street sale
 router.post('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
     try {
-        const companyId = req.params.companyId as string;
+        const companyId = getCompanyId(req);
         const userId = req.user!.userId;
         const { raffleId, customerName, customerPhone, quantity, ticketNumbers } = req.body;
 

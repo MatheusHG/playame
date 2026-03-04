@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { useTenant } from '@/contexts/TenantContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,9 +20,9 @@ const passwordSchema = z.object({
 });
 
 export default function RedefinirSenha() {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { company, loading: companyLoading } = useTenant();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,16 +30,6 @@ export default function RedefinirSenha() {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sessionReady, setSessionReady] = useState(false);
-
-  // Fetch company data
-  const { data: company, isLoading: companyLoading } = useQuery({
-    queryKey: ['company', slug],
-    queryFn: async () => {
-      const data = await api.get<any>(`/companies/${slug}`);
-      return data;
-    },
-    enabled: !!slug,
-  });
 
   // Check for recovery token in URL hash
   useEffect(() => {
@@ -92,7 +82,7 @@ export default function RedefinirSenha() {
 
       // Redirect after 3 seconds
       setTimeout(() => {
-        navigate(`/afiliado/${slug}/login`);
+        navigate('/afiliado/login');
       }, 3000);
     } catch (err: any) {
       toast({
@@ -141,7 +131,7 @@ export default function RedefinirSenha() {
               Sua senha foi alterada com sucesso. Você será redirecionado para o login em instantes...
             </p>
             <Button asChild variant="outline" className="w-full">
-              <Link to={`/afiliado/${slug}/login`}>
+              <Link to={'/afiliado/login'}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Ir para o login
               </Link>
@@ -167,7 +157,7 @@ export default function RedefinirSenha() {
               Solicite um novo link.
             </p>
             <Button asChild className="w-full" style={{ backgroundColor: primaryColor }}>
-              <Link to={`/afiliado/${slug}/esqueci-senha`}>
+              <Link to={"/afiliado/esqueci-senha"}>
                 Solicitar novo link
               </Link>
             </Button>
@@ -255,7 +245,7 @@ export default function RedefinirSenha() {
 
           <div className="text-center mt-6">
             <Link 
-              to={`/afiliado/${slug}/login`}
+              to={'/afiliado/login'}
               className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <ArrowLeft className="h-3 w-3" />

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
@@ -69,8 +68,7 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export default function VendaRua() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading } = useTenant();
+  const { company, loading } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -98,10 +96,6 @@ export default function VendaRua() {
   const [printerConnected, setPrinterConnected] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [isConnectingPrinter, setIsConnectingPrinter] = useState(false);
-
-  useEffect(() => {
-    if (slug) setCompanySlug(slug);
-  }, [slug, setCompanySlug]);
 
   // Sync printer connection status
   useEffect(() => {
@@ -268,7 +262,7 @@ export default function VendaRua() {
         createdAt: new Date(),
         sellerEmail: user?.email || null,
         raffleId: selectedRaffleId,
-        companySlug: slug,
+        companySlug: company?.slug,
       });
 
       queryClient.invalidateQueries({ queryKey: ['street-sales', company.id] });
@@ -329,7 +323,7 @@ export default function VendaRua() {
         createdAt: new Date(detail.payment.processed_at || detail.payment.created_at),
         sellerEmail: detail.seller_email || null,
         raffleId: detail.raffle?.id,
-        companySlug: slug,
+        companySlug: company?.slug,
       });
     } catch {
       toast({ variant: 'destructive', title: 'Erro ao carregar comprovante' });

@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
@@ -11,17 +10,10 @@ import { CheckCircle, Ticket, Home, AlertCircle } from 'lucide-react';
 import { PublicFooter } from '@/components/public/PublicFooter';
 
 export default function CompraSucesso() {
-  const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const paymentId = searchParams.get('payment_id');
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { player } = usePlayer();
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   useCompanyBranding();
 
@@ -84,7 +76,7 @@ export default function CompraSucesso() {
                   aguarde alguns minutos e verifique suas cartelas.
                 </p>
                 <Button asChild>
-                  <Link to={`/empresa/${slug}`}>
+                  <Link to={"/"}>
                     <Home className="mr-2 h-4 w-4" />
                     Voltar ao Início
                   </Link>
@@ -143,7 +135,7 @@ export default function CompraSucesso() {
 
                 <div className="pt-4 space-y-3">
                   <Button asChild className="w-full">
-                    <Link to={`/empresa/${slug}`}>
+                    <Link to={"/"}>
                       <Home className="mr-2 h-4 w-4" />
                       Voltar e Comprar Mais
                     </Link>

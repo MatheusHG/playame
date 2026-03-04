@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { useTenant } from '@/contexts/TenantContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,23 +16,13 @@ const emailSchema = z.object({
 });
 
 export default function EsqueciSenha() {
-  const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
+  const { company, loading: companyLoading } = useTenant();
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
-
-  // Fetch company data
-  const { data: company, isLoading: companyLoading } = useQuery({
-    queryKey: ['company', slug],
-    queryFn: async () => {
-      const data = await api.get<any>(`/companies/by-slug/${slug}`);
-      return data;
-    },
-    enabled: !!slug,
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +38,7 @@ export default function EsqueciSenha() {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/afiliado/${slug}/redefinir-senha`;
+      const redirectUrl = `${window.location.origin}/afiliado/redefinir-senha`;
 
       await api.post('/auth/reset-password', {
         email,
@@ -110,7 +100,7 @@ export default function EsqueciSenha() {
               Verifique também sua pasta de spam.
             </p>
             <Button asChild variant="outline" className="w-full">
-              <Link to={`/afiliado/${slug}/login`}>
+              <Link to={"/afiliado/login"}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para o login
               </Link>
@@ -180,7 +170,7 @@ export default function EsqueciSenha() {
 
           <div className="text-center mt-6">
             <Link 
-              to={`/afiliado/${slug}/login`}
+              to={"/afiliado/login"}
               className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <ArrowLeft className="h-3 w-3" />

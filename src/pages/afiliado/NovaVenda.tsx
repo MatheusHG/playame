@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 
 export default function NovaVenda() {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { affiliate, hasPermission } = useAffiliate();
   const { toast } = useToast();
@@ -123,7 +122,7 @@ export default function NovaVenda() {
         description: 'A cartela foi criada e está aguardando pagamento.',
       });
       queryClient.invalidateQueries({ queryKey: ['affiliate-sales'], exact: false });
-      navigate(`/afiliado/${slug}/vendas`);
+      navigate('/afiliado/vendas');
     },
     onError: (error: Error) => {
       toast({

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 interface CommunityChannelBannerProps {
   communityName: string;
   communityUrl: string;
-  companySlug: string;
+  companyId?: string;
   primaryColor?: string;
   /** Se true, não mostra o botão X (banner fixo) */
   permanent?: boolean;
@@ -14,18 +14,18 @@ interface CommunityChannelBannerProps {
 const COOKIE_PREFIX = 'community_dismissed_';
 const THREE_DAYS_SECONDS = 259200; // 3 * 24 * 60 * 60
 
-function isDismissed(slug: string): boolean {
-  return document.cookie.includes(`${COOKIE_PREFIX}${slug}=true`);
+function isDismissed(id: string): boolean {
+  return document.cookie.includes(`${COOKIE_PREFIX}${id}=true`);
 }
 
-function setDismissedCookie(slug: string) {
-  document.cookie = `${COOKIE_PREFIX}${slug}=true; path=/; max-age=${THREE_DAYS_SECONDS}`;
+function setDismissedCookie(id: string) {
+  document.cookie = `${COOKIE_PREFIX}${id}=true; path=/; max-age=${THREE_DAYS_SECONDS}`;
 }
 
 export function CommunityChannelBanner({
   communityName,
   communityUrl,
-  companySlug,
+  companyId,
   primaryColor = '#3B82F6',
   permanent = false,
 }: CommunityChannelBannerProps) {
@@ -34,15 +34,15 @@ export function CommunityChannelBanner({
   useEffect(() => {
     if (permanent) {
       setVisible(true);
-    } else {
-      setVisible(!isDismissed(companySlug));
+    } else if (companyId) {
+      setVisible(!isDismissed(companyId));
     }
-  }, [companySlug, permanent]);
+  }, [companyId, permanent]);
 
   if (!visible) return null;
 
   const handleDismiss = () => {
-    setDismissedCookie(companySlug);
+    if (companyId) setDismissedCookie(companyId);
     setVisible(false);
   };
 

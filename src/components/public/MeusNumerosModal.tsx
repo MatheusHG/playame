@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 interface MeusNumerosModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  slug: string;
   companyId?: string;
 }
 
@@ -50,7 +49,7 @@ function isRef(value: string): boolean {
   return UUID_REGEX.test(value.trim());
 }
 
-export function MeusNumerosModal({ open, onOpenChange, slug, companyId }: MeusNumerosModalProps) {
+export function MeusNumerosModal({ open, onOpenChange, companyId }: MeusNumerosModalProps) {
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [submittedCpf, setSubmittedCpf] = useState<string | null>(null);
@@ -105,7 +104,7 @@ export function MeusNumerosModal({ open, onOpenChange, slug, companyId }: MeusNu
         // Get the raffle_id from the payment
         const paymentData = await api.get<any>(`/payments/ref-raffle/${ref}`).catch(() => null);
         if (paymentData?.raffle_id) {
-          navigate(`/empresa/${slug}/sorteio/${paymentData.raffle_id}/acompanhar?ref=${ref}`);
+          navigate(`/sorteio/${paymentData.raffle_id}/acompanhar?ref=${ref}`);
         } else {
           // Fallback: just show that data was found but can't redirect without raffle_id
           setError('Ref encontrado, mas não foi possível determinar o sorteio.');
@@ -249,7 +248,7 @@ export function MeusNumerosModal({ open, onOpenChange, slug, companyId }: MeusNu
                           className="w-full mt-2"
                           onClick={() => {
                             onOpenChange(false);
-                            navigate(`/empresa/${slug}/sorteio/${raffle.id}`);
+                            navigate(`/sorteio/${raffle.id}`);
                           }}
                         >
                           Ver Sorteio

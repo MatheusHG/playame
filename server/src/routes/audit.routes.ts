@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireCompanyAccess, requireSuperAdmin } from '../middleware/roleGuard.js';
 import * as auditService from '../services/audit.service.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async 
       page: req.query.page ? Number(req.query.page) : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
     };
-    const result = await auditService.getByCompany(req.params.companyId as string, filters);
+    const result = await auditService.getByCompany(getCompanyId(req), filters);
     res.json(result);
   } catch (err) { next(err); }
 });

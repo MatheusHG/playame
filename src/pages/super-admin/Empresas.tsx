@@ -159,7 +159,13 @@ export default function SuperAdminEmpresas() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => navigate(`/empresa/${item.slug}/dashboard`)} className="gap-2">
+            <DropdownMenuItem onClick={() => {
+              if (item.custom_domain) {
+                window.open(`https://${item.custom_domain}/admin/dashboard`, '_blank');
+              } else {
+                navigate('/admin/dashboard');
+              }
+            }} className="gap-2">
               <LogIn className="h-4 w-4" />
               Acessar empresa
             </DropdownMenuItem>
@@ -263,7 +269,19 @@ export default function SuperAdminEmpresas() {
                     placeholder="minha-empresa"
                   />
                   <p className="text-xs text-muted-foreground">
-                    URL: /empresa/{newCompany.slug || 'slug'}
+                    Slug: {newCompany.slug || 'slug'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-custom-domain">Domínio Próprio</Label>
+                  <Input
+                    id="new-custom-domain"
+                    value={(newCompany as any).custom_domain || ''}
+                    onChange={(e) => setNewCompany({ ...newCompany, custom_domain: e.target.value || undefined } as any)}
+                    placeholder="www.empresa.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Domínio personalizado (opcional). Configure CNAME para a plataforma.
                   </p>
                 </div>
               </div>

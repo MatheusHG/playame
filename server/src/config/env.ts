@@ -20,6 +20,7 @@ export const env = {
   S3_SECRET_KEY: process.env.S3_SECRET_KEY || '',
   PORT: parseInt(process.env.PORT || '3001', 10),
   CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:5173',
+  PLATFORM_DOMAIN: process.env.PLATFORM_DOMAIN || 'localhost',
 };
 
 const required = ['DATABASE_URL', 'JWT_SECRET', 'PLAYER_JWT_SECRET', 'CPF_SALT'] as const;

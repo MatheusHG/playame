@@ -16,14 +16,13 @@ type Player = {
 };
 
 interface PlayerAccountMenuProps {
-  slug: string;
   player: Player;
   onLogout: () => void;
   variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'link' | 'destructive';
   className?: string;
 }
 
-export function PlayerAccountMenu({ slug, player, onLogout, variant = 'secondary', className }: PlayerAccountMenuProps) {
+export function PlayerAccountMenu({ player, onLogout, variant = 'secondary', className }: PlayerAccountMenuProps) {
   const navigate = useNavigate();
   const firstName = player.name?.split(' ')[0] || 'Conta';
 
@@ -45,19 +44,19 @@ export function PlayerAccountMenu({ slug, player, onLogout, variant = 'secondary
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild>
-          <Link to={`/empresa/${slug}/minha-conta?tab=bilhetes`}>
+          <Link to="/minha-conta?tab=bilhetes">
             <Ticket className="mr-2 h-4 w-4" />
             Minhas cartelas
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={`/empresa/${slug}/minha-conta?tab=sorteios`}>
+          <Link to="/minha-conta?tab=sorteios">
             <Trophy className="mr-2 h-4 w-4" />
             Meus sorteios
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={`/empresa/${slug}/minha-conta?tab=configuracoes`}>
+          <Link to="/minha-conta?tab=configuracoes">
             <Settings className="mr-2 h-4 w-4" />
             Editar perfil
           </Link>
@@ -69,7 +68,7 @@ export function PlayerAccountMenu({ slug, player, onLogout, variant = 'secondary
           onSelect={(e) => {
             e.preventDefault();
             onLogout();
-            navigate(`/empresa/${slug}`);
+            navigate('/');
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />

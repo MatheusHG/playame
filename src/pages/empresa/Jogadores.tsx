@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -44,18 +44,11 @@ import { getDisplayCpf } from '@/lib/utils';
 import type { Player } from '@/types/database.types';
 
 export default function EmpresaJogadores() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading } = useTenant();
+  const { company, loading } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['company-players', company?.id],
@@ -102,7 +95,7 @@ export default function EmpresaJogadores() {
         const isStreet = !(player as any).cpf_encrypted;
         return (
           <Link
-            to={`/empresa/${slug}/jogadores/${player.id}`}
+            to={`/admin/jogadores/${player.id}`}
             className="block hover:opacity-80 transition-opacity"
           >
             <p className="font-medium">{player.name}</p>
@@ -176,7 +169,7 @@ export default function EmpresaJogadores() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem asChild>
-              <Link to={`/empresa/${slug}/jogadores/${player.id}`} className="flex items-center gap-2">
+              <Link to={`/admin/jogadores/${player.id}`} className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
                 Ver perfil
               </Link>

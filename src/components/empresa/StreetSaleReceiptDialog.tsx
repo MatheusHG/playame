@@ -171,8 +171,8 @@ export function StreetSaleReceiptDialog({ open, onOpenChange, data, company }: S
 
   const primaryColor = company.primary_color || '#3B82F6';
 
-  const trackingUrl = data.raffleId && data.companySlug
-    ? `${window.location.origin}/empresa/${data.companySlug}/sorteio/${data.raffleId}/acompanhar?ref=${data.paymentId}`
+  const trackingUrl = data.raffleId && data.paymentId
+    ? `${window.location.origin}/sorteio/${data.raffleId}/acompanhar?ref=${data.paymentId}`
     : null;
 
   return (

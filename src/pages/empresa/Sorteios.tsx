@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -49,19 +49,12 @@ function StatItem({ icon: Icon, iconBg, iconColor, label, value, onClick, active
 }
 
 export default function EmpresaSorteios() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RaffleStatus | 'all'>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusChange, setStatusChange] = useState<{ id: string; status: RaffleStatus } | null>(null);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   const { data: raffles, isLoading } = useRaffles(company?.id);
   const { changeStatus, deleteRaffle } = useRaffleMutations(company?.id);
@@ -183,7 +176,7 @@ export default function EmpresaSorteios() {
             </SelectContent>
           </Select>
           <Button asChild className="rounded-xl">
-            <Link to={`/empresa/${slug}/sorteios/novo`}>
+            <Link to={"/admin/sorteios/novo"}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Sorteio
             </Link>
@@ -206,7 +199,7 @@ export default function EmpresaSorteios() {
           </p>
           {raffles?.length === 0 && (
             <Button asChild className="mt-4 rounded-xl">
-              <Link to={`/empresa/${slug}/sorteios/novo`}>
+              <Link to={"/admin/sorteios/novo"}>
                 <Plus className="mr-2 h-4 w-4" />
                 Criar Primeiro Sorteio
               </Link>
@@ -235,7 +228,7 @@ export default function EmpresaSorteios() {
               <RaffleCard
                 key={raffle.id}
                 raffle={raffle}
-                slug={slug!}
+
                 primaryColor={company?.primary_color}
                 onChangeStatus={(id, status) => setStatusChange({ id, status })}
                 onDelete={(id) => setDeleteId(id)}

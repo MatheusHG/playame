@@ -27,7 +27,8 @@ export function requireCompanyAccess(companyIdParam = 'companyId') {
       return;
     }
 
-    const companyId = req.params[companyIdParam];
+    // Prefer tenantId from domain resolution, fallback to route param
+    const companyId = req.tenantId || req.params[companyIdParam];
     if (!companyId) {
       next();
       return;
@@ -53,7 +54,8 @@ export function requireCompanyAdmin(companyIdParam = 'companyId') {
       return;
     }
 
-    const companyId = req.params[companyIdParam];
+    // Prefer tenantId from domain resolution, fallback to route param
+    const companyId = req.tenantId || req.params[companyIdParam];
     const isAdmin = req.user.roles.some(
       r => r.companyId === companyId && r.role === 'ADMIN_EMPRESA'
     );

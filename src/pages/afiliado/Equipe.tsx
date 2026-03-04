@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
@@ -103,7 +102,6 @@ const emptyForm: MemberFormData = {
 };
 
 export default function Equipe() {
-  const { slug } = useParams<{ slug: string }>();
   const { affiliate, hasPermission } = useAffiliate();
   const { toast } = useToast();
   const queryClient = useQueryClient();

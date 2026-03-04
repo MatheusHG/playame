@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -274,8 +273,7 @@ function ChangesDialog({
 }
 
 export default function EmpresaAuditoria() {
-  const { slug } = useParams<{ slug: string }>();
-  const { company, loading, setCompanySlug } = useTenant();
+  const { company, loading } = useTenant();
 
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState('');
@@ -283,10 +281,6 @@ export default function EmpresaAuditoria() {
   const [action, setAction] = useState('');
   const [entityType, setEntityType] = useState('');
   const [selectedLog, setSelectedLog] = useState<AuditLogWithRelations | null>(null);
-
-  useEffect(() => {
-    if (slug) setCompanySlug(slug);
-  }, [slug, setCompanySlug]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit-logs', company?.id, page, startDate, endDate, action, entityType],

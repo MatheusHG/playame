@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
@@ -22,14 +21,9 @@ interface WinnerTicket {
 }
 
 export default function Ganhadores() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
   const [expandedRaffle, setExpandedRaffle] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (slug) setCompanySlug(slug);
-  }, [slug, setCompanySlug]);
 
   useCompanyBranding();
 
@@ -75,7 +69,7 @@ export default function Ganhadores() {
             <span className="text-white font-bold text-xl">{company.name}</span>
           </div>
           {isAuthenticated && player && (
-            <PlayerAccountMenu slug={slug!} player={player} onLogout={logout} variant="secondary" className="bg-white/20 text-white hover:bg-white/30" />
+            <PlayerAccountMenu player={player} onLogout={logout} variant="secondary" className="bg-white/20 text-white hover:bg-white/30" />
           )}
         </div>
       </header>

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
@@ -9,18 +8,12 @@ import { ArrowLeft } from 'lucide-react';
 import { useRaffle, useRaffleMutations, usePrizeTierMutations } from '@/hooks/useRaffles';
 
 export default function EditarSorteio() {
-  const { slug, id } = useParams<{ slug: string; id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { data: raffle, isLoading: raffleLoading } = useRaffle(id);
   const { updateRaffle } = useRaffleMutations(company?.id);
   const { savePrizeTiers } = usePrizeTierMutations(id);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   const handleSubmit = (data: RaffleFormData, tiers: PrizeTierInput[]) => {
     if (!raffle) return;
@@ -49,7 +42,7 @@ export default function EditarSorteio() {
       },
       {
         onSuccess: () => {
-          navigate(`/empresa/${slug}/sorteios/${id}`);
+          navigate(`/admin/sorteios/${id}`);
         },
       }
     );
@@ -67,7 +60,7 @@ export default function EditarSorteio() {
       <EmpresaLayout title="Sorteio não encontrado">
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">O sorteio solicitado não foi encontrado.</p>
-          <Button onClick={() => navigate(`/empresa/${slug}/sorteios`)} className="rounded-xl">Voltar</Button>
+          <Button onClick={() => navigate('/admin/sorteios')} className="rounded-xl">Voltar</Button>
         </div>
       </EmpresaLayout>
     );

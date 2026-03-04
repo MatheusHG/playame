@@ -45,7 +45,7 @@ export default function Auth() {
       // Affiliate users (manager/cambista) ALWAYS go to affiliate portal
       // Must come BEFORE company role check — affiliates also have COLABORADOR role
       if (affiliateInfo) {
-        navigate(`/afiliado/${affiliateInfo.companySlug}/dashboard`, { replace: true });
+        navigate('/afiliado/dashboard', { replace: true });
         return;
       }
 
@@ -58,15 +58,8 @@ export default function Auth() {
       // Company role redirect (ADMIN_EMPRESA or COLABORADOR without affiliate)
       const companyRole = roles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
       if (companyRole && companyRole.company_id) {
-        try {
-          const company = await api.get<{ slug: string }>(`/companies/${companyRole.company_id}`);
-          if (company?.slug) {
-            navigate(`/empresa/${company.slug}/dashboard`, { replace: true });
-            return;
-          }
-        } catch {
-          // Fall through to default
-        }
+        navigate('/admin/dashboard', { replace: true });
+        return;
       }
 
       // Default fallback

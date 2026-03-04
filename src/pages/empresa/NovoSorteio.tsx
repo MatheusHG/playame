@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -11,18 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 
 export default function NovoSorteio() {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { setCompanySlug, company, loading } = useTenant();
+  const { company, loading } = useTenant();
   const { createRaffle } = useRaffleMutations(company?.id);
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   const handleSubmit = (data: RaffleFormData, tiers: PrizeTierInput[]) => {
     setIsSaving(true);
@@ -59,7 +52,7 @@ export default function NovoSorteio() {
               });
             }
           }
-          navigate(`/empresa/${slug}/sorteios/${raffle.id}`);
+          navigate(`/admin/sorteios/${raffle.id}`);
         },
         onSettled: () => setIsSaving(false),
       }

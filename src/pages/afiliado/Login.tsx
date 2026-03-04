@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAffiliate } from '@/contexts/AffiliateContext';
+import { useTenant } from '@/contexts/TenantContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,32 +17,22 @@ const loginSchema = z.object({
 });
 
 export default function AffiliateLogin() {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { affiliate, loading: authLoading, signIn } = useAffiliate();
+  const { company, loading: companyLoading } = useTenant();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch company data
-  const { data: company, isLoading: companyLoading } = useQuery({
-    queryKey: ['company', slug],
-    queryFn: async () => {
-      const data = await api.get<any>(`/companies/by-slug/${slug}`);
-      return data;
-    },
-    enabled: !!slug,
-  });
-
   // Redirect if already authenticated
   useEffect(() => {
-    if (!authLoading && affiliate && affiliate.company.slug === slug) {
-      navigate(`/afiliado/${slug}/dashboard`);
+    if (!authLoading && affiliate) {
+      navigate('/afiliado/dashboard');
     }
-  }, [authLoading, affiliate, slug, navigate]);
+  }, [authLoading, affiliate, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +193,7 @@ export default function AffiliateLogin() {
 
             <div className="text-center">
               <Link 
-                to={`/afiliado/${slug}/esqueci-senha`}
+                to={"/afiliado/esqueci-senha"}
                 className="text-sm text-primary hover:underline"
               >
                 Esqueci minha senha

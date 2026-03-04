@@ -29,9 +29,9 @@ interface TicketSelection {
 }
 
 export default function SorteioPage() {
-  const { slug, raffleId } = useParams<{ slug: string; raffleId: string }>();
+  const { raffleId } = useParams<{ raffleId: string }>();
   const [searchParams] = useSearchParams();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { player, isAuthenticated, logout } = usePlayer();
   const { toast } = useToast();
 
@@ -51,16 +51,16 @@ export default function SorteioPage() {
   // Capture ref from URL and store in localStorage
   useEffect(() => {
     const refCode = searchParams.get('ref');
-    if (refCode && slug) {
+    if (refCode && company?.id) {
       // Store the ref code in localStorage for this company
-      localStorage.setItem(`affiliate_ref_${slug}`, refCode);
+      localStorage.setItem(`affiliate_ref_${company.id}`, refCode);
     }
-  }, [searchParams, slug]);
+  }, [searchParams, company?.id]);
 
   // Fetch affiliate by link_code from URL or localStorage
   useEffect(() => {
     const fetchAffiliateByRef = async () => {
-      const refCode = searchParams.get('ref') || (slug ? localStorage.getItem(`affiliate_ref_${slug}`) : null);
+      const refCode = searchParams.get('ref') || (company?.id ? localStorage.getItem(`affiliate_ref_${company.id}`) : null);
 
       if (!refCode || !company?.id) {
         setAffiliateId(null);
@@ -87,13 +87,7 @@ export default function SorteioPage() {
     };
 
     fetchAffiliateByRef();
-  }, [searchParams, slug, company?.id]);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
+  }, [searchParams, company?.id]);
 
   useCompanyBranding();
 
@@ -433,7 +427,7 @@ export default function SorteioPage() {
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 border-b" style={{ backgroundColor: company.primary_color }}>
           <div className="container mx-auto px-4 h-16 flex items-center">
-            <Link to={`/empresa/${slug}`} className="flex items-center gap-2 text-white">
+            <Link to={"/"} className="flex items-center gap-2 text-white">
               <ArrowLeft className="h-5 w-5" />
               <span>{company.name}</span>
             </Link>
@@ -444,7 +438,7 @@ export default function SorteioPage() {
           <h1 className="text-2xl font-bold mb-2">Sorteio não encontrado</h1>
           <p className="text-muted-foreground mb-4">O sorteio solicitado não existe ou não está ativo.</p>
           <Button asChild>
-            <Link to={`/empresa/${slug}`}>Voltar</Link>
+            <Link to={"/"}>Voltar</Link>
           </Button>
         </div>
         <PublicFooter />
@@ -458,7 +452,7 @@ export default function SorteioPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b backdrop-blur-md" style={{ backgroundColor: `${company.primary_color}F2` }}>
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to={`/empresa/${slug}`} className="flex items-center gap-2 text-white">
+          <Link to={"/"} className="flex items-center gap-2 text-white">
             <ArrowLeft className="h-5 w-5" />
             <span className="font-medium">{company.name}</span>
           </Link>
@@ -467,7 +461,6 @@ export default function SorteioPage() {
             <div className="flex items-center gap-2">
               {player && (
                 <PlayerAccountMenu
-                  slug={slug!}
                   player={player}
                   onLogout={logout}
                   variant="secondary"
@@ -579,7 +572,7 @@ export default function SorteioPage() {
 
               {/* Acompanhar o sorteio */}
               <Link
-                to={`/empresa/${slug}/sorteio/${raffleId}/acompanhar`}
+                to={`/sorteio/${raffleId}/acompanhar`}
                 className="inline-flex items-center gap-2 bg-primary/10 rounded-xl px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors w-fit"
               >
                 <Radio className="h-4 w-4 animate-pulse" />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -35,11 +35,10 @@ import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 
 export default function MinhaConta() {
-  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { player, companyId, isAuthenticated, isLoading: playerLoading, logout, updatePlayer } = usePlayer();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -69,18 +68,12 @@ export default function MinhaConta() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
-
   // Redirect if not authenticated
   useEffect(() => {
     if (!playerLoading && !isAuthenticated) {
-      navigate(`/empresa/${slug}`);
+      navigate('/');
     }
-  }, [playerLoading, isAuthenticated, navigate, slug]);
+  }, [playerLoading, isAuthenticated, navigate]);
 
   // Fetch player's tickets
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
@@ -126,7 +119,7 @@ export default function MinhaConta() {
 
   const handleLogout = () => {
     logout();
-    navigate(`/empresa/${slug}`);
+    navigate('/');
   };
 
   const handlePasswordChange = async () => {
@@ -433,7 +426,7 @@ export default function MinhaConta() {
                             </Badge>
                           )}
                           <Button variant="outline" size="sm" asChild className="ml-auto">
-                            <Link to={`/empresa/${slug}/sorteio/${(ticket as any).raffle?.id}`}>
+                            <Link to={`/sorteio/${(ticket as any).raffle?.id}`}>
                               <Eye className="h-4 w-4 mr-2" />
                               Acompanhar
                             </Link>
@@ -490,7 +483,7 @@ export default function MinhaConta() {
                             </Badge>
                           )}
                           <Button variant="outline" size="sm" asChild className="ml-auto">
-                            <Link to={`/empresa/${slug}/sorteio/${(ticket as any).raffle?.id}`}>
+                            <Link to={`/sorteio/${(ticket as any).raffle?.id}`}>
                               <Eye className="h-4 w-4 mr-2" />
                               Ver sorteio
                             </Link>
@@ -600,7 +593,7 @@ export default function MinhaConta() {
                             {raffleTickets.length} bilhete(s) ativo(s)
                           </p>
                           <Button variant="outline" size="sm" asChild>
-                            <Link to={`/empresa/${slug}/sorteio/${raffle.id}`}>
+                            <Link to={`/sorteio/${raffle.id}`}>
                               <Eye className="h-4 w-4 mr-2" />
                               Ver Sorteio
                             </Link>

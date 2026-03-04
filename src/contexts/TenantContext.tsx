@@ -6,54 +6,71 @@ const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentSlug, setCurrentSlug] = useState<string | null>(null);
 
-  const fetchCompanyByIdentifier = useCallback(async (identifier: string) => {
-    if (!identifier) {
-      setCompany(null);
-      setLoading(false);
-      return;
-    }
-
+  const resolveTenant = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await api.get<Company>(`/companies/${encodeURIComponent(identifier)}`);
+      // The backend resolves the tenant from the Host header automatically.
+      // GET /tenant/resolve returns the company for the current domain.
+      const data = await api.get<Company>('/tenant/resolve');
 
-      if (!data) {
+      if (!data || !data.id) {
         setError('Empresa não encontrada');
         setCompany(null);
       } else {
         setCompany(data);
         setError(null);
       }
-    } catch (err) {
-      console.error('Error fetching company:', err);
-      setError('Erro ao carregar empresa');
-      setCompany(null);
+    } catch (err: any) {
+      // 404 means no tenant for this domain — could be platform domain or unknown
+      if (err?.status === 404) {
+        // Not an error on platform domain (super-admin, auth pages)
+        setCompany(null);
+        setError(null);
+      } else {
+        console.error('Error resolving tenant:', err);
+        setError('Erro ao carregar empresa');
+        setCompany(null);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Resolve tenant once on mount (domain doesn't change during session)
   useEffect(() => {
-    if (currentSlug) {
-      fetchCompanyByIdentifier(currentSlug);
-    }
-  }, [currentSlug, fetchCompanyByIdentifier]);
+    resolveTenant();
+  }, [resolveTenant]);
 
-  const setCompanySlug = useCallback((slug: string) => {
-    setCurrentSlug(slug);
-  }, []);
+  // Backwards compatibility: setCompanySlug now fetches by identifier
+  const setCompanySlug = useCallback(async (slug: string) => {
+    if (!slug) return;
+    // If company is already resolved from domain and matches, skip
+    if (company?.slug === slug) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.get<Company>(`/companies/${encodeURIComponent(slug)}`);
+      if (data) {
+        setCompany(data);
+        setError(null);
+      }
+    } catch {
+      setError('Empresa não encontrada');
+      setCompany(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [company?.slug]);
 
   const refetchCompany = useCallback(async () => {
-    if (currentSlug) {
-      await fetchCompanyByIdentifier(currentSlug);
-    }
-  }, [currentSlug, fetchCompanyByIdentifier]);
+    await resolveTenant();
+  }, [resolveTenant]);
 
   const value: TenantContextType = {
     company,

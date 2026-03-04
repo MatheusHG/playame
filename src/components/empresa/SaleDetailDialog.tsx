@@ -57,10 +57,9 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
       }
 
       const raffleId = data.ticket.raffle_id || data.ticket.raffle?.id;
-      const companySlug = company.slug;
       const paymentId = data.payment?.id;
-      const trackingUrl = raffleId && companySlug && paymentId
-        ? `${window.location.origin}/empresa/${companySlug}/sorteio/${raffleId}/acompanhar?ref=${paymentId}`
+      const trackingUrl = raffleId && paymentId
+        ? `${window.location.origin}/sorteio/${raffleId}/acompanhar?ref=${paymentId}`
         : undefined;
 
       const lines = formatReceiptLines({

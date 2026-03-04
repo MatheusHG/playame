@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -117,9 +117,9 @@ function StatItem({ icon: Icon, iconBg, iconColor, label, value, subtitle, actio
 }
 
 export default function VisualizarSorteio() {
-  const { slug, id } = useParams<{ slug: string; id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
+  const { company, loading: tenantLoading } = useTenant();
   const { data: raffle, isLoading } = useRaffle(id);
   const { changeStatus } = useRaffleMutations(company?.id);
   const { savePrizeTiers } = usePrizeTierMutations(id);
@@ -134,12 +134,6 @@ export default function VisualizarSorteio() {
       return api.get<NetSalesBreakdown>(`/payments/net-sales/${id}`);
     },
   });
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   const handleStatusChange = () => {
     if (statusChange) {
@@ -178,7 +172,7 @@ export default function VisualizarSorteio() {
             <Dices className="h-8 w-8 text-muted-foreground/50" />
           </div>
           <p className="text-muted-foreground mb-4">O sorteio solicitado não foi encontrado.</p>
-          <Button onClick={() => navigate(`/empresa/${slug}/sorteios`)} className="rounded-xl">Voltar</Button>
+          <Button onClick={() => navigate('/admin/sorteios')} className="rounded-xl">Voltar</Button>
         </div>
       </EmpresaLayout>
     );
@@ -210,7 +204,7 @@ export default function VisualizarSorteio() {
       <div className="rounded-2xl border bg-card p-5 mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(`/empresa/${slug}/sorteios`)} className="rounded-xl">
+            <Button variant="ghost" onClick={() => navigate('/admin/sorteios')} className="rounded-xl">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar
             </Button>
@@ -257,7 +251,7 @@ export default function VisualizarSorteio() {
               </>
             )}
             <Button variant="outline" asChild className="rounded-xl">
-              <Link to={`/empresa/${slug}/sorteios/${raffle.id}/editar`}>
+              <Link to={`/admin/sorteios/${raffle.id}/editar`}>
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </Link>

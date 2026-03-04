@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { AffiliateForm, AffiliateFormData } from './AffiliateForm';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { useAffiliates } from '@/hooks/useAffiliates';
+import { useTenant } from '@/contexts/TenantContext';
 import { Affiliate } from '@/types/affiliate.types';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -44,7 +45,7 @@ interface AffiliatesListProps {
 }
 
 export function AffiliatesList({ companyId }: AffiliatesListProps) {
-  const { slug } = useParams<{ slug: string }>();
+  const { company } = useTenant();
   const { toast } = useToast();
   const {
     managers,
@@ -66,9 +67,9 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   
-  const getAffiliateLoginUrl = () => `${baseUrl}/afiliado/${slug}/login`;
-  
-  const getAffiliateSalesLink = (linkCode: string) => `${baseUrl}/empresa/${slug}?ref=${linkCode}`;
+  const getAffiliateLoginUrl = () => `${baseUrl}/afiliado/login`;
+
+  const getAffiliateSalesLink = (linkCode: string) => `${baseUrl}/?ref=${linkCode}`;
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -219,7 +220,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link to={`/empresa/${slug}/afiliados/${manager.id}`}>
+                          <Link to={`/admin/afiliados/${manager.id}`}>
                             <Eye className="h-4 w-4 mr-2" />
                             Ver Detalhes
                           </Link>
@@ -320,7 +321,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem asChild>
-                                    <Link to={`/empresa/${slug}/afiliados/${cambista.id}`}>
+                                    <Link to={`/admin/afiliados/${cambista.id}`}>
                                       <Eye className="h-4 w-4 mr-2" />
                                       Ver Detalhes
                                     </Link>
@@ -390,7 +391,7 @@ export function AffiliatesList({ companyId }: AffiliatesListProps) {
         open={resetPasswordOpen}
         onOpenChange={setResetPasswordOpen}
         affiliate={affiliateToReset}
-        companySlug={slug || ''}
+        companySlug={company?.slug || ''}
       />
     </div>
   );

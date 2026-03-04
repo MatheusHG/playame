@@ -89,6 +89,7 @@ model companies {
   id                             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                           String
   slug                           String          @unique
+  custom_domain                  String?         @unique
   logo_url                       String?
   primary_color                  String?         @default("#3B82F6")
   secondary_color                String?         @default("#1E40AF")

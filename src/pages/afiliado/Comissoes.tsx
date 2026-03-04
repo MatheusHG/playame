@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
@@ -27,7 +26,6 @@ import {
 } from 'lucide-react';
 
 export default function Comissoes() {
-  const { slug } = useParams<{ slug: string }>();
   const { affiliate, hasPermission } = useAffiliate();
 
   const currentMonth = {

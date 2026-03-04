@@ -50,7 +50,7 @@ export function ResetPasswordDialog({
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/afiliado/${companySlug}/redefinir-senha`;
+      const redirectUrl = `${window.location.origin}/afiliado/redefinir-senha`;
 
       await api.post('/auth/reset-password', {
         email: effectiveEmail,

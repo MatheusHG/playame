@@ -3,13 +3,14 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireCompanyAccess, requireSuperAdmin } from '../middleware/roleGuard.js';
 import * as financialService from '../services/financial.service.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
 // GET /company/:companyId - auth + company access
 router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const result = await financialService.getByCompany(req.params.companyId as string);
+    const result = await financialService.getByCompany(getCompanyId(req));
     res.json(result.data);
   } catch (err) { next(err); }
 });

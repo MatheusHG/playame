@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -43,8 +42,7 @@ function SectionCard({ icon: Icon, iconBg, iconColor, title, description, childr
 }
 
 export default function EmpresaConfiguracoes() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading, refetchCompany } = useTenant();
+  const { company, loading, refetchCompany } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,12 +58,6 @@ export default function EmpresaConfiguracoes() {
     contact_info: { whatsapp: '', phone: '', email: '', address: '', instagram: '', facebook: '' },
   });
   const [uploading, setUploading] = useState(false);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   useEffect(() => {
     if (company) {

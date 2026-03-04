@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
@@ -31,7 +30,6 @@ import {
 import { Link } from 'react-router-dom';
 
 export default function Vendas() {
-  const { slug } = useParams<{ slug: string }>();
   const { affiliate, hasPermission } = useAffiliate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -173,7 +171,7 @@ export default function Vendas() {
           </div>
           {hasPermission('can_create_sales') && !affiliate?.is_sales_paused && (
             <Button asChild>
-              <Link to={`/afiliado/${slug}/nova-venda`}>
+              <Link to="/afiliado/nova-venda">
                 <Ticket className="h-4 w-4 mr-2" />
                 Nova Venda
               </Link>

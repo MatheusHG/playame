@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -79,9 +79,8 @@ function StatItem({ icon: Icon, iconBg, iconColor, label, value, subtitle, toolt
 }
 
 export default function EmpresaFinanceiro() {
-  const { slug } = useParams<{ slug: string }>();
-  const { setCompanySlug, company, loading } = useTenant();
-  
+  const { company, loading } = useTenant();
+
   // Date filters
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -89,12 +88,6 @@ export default function EmpresaFinanceiro() {
   const [paymentControls, setPaymentControls] = useState<Record<string, { openApprove: () => void; openReject: () => void }>>({});
   // Modal do descritivo (invoice) do pagamento
   const [invoiceModalPayment, setInvoiceModalPayment] = useState<PaymentWithPlayer | null>(null);
-
-  useEffect(() => {
-    if (slug) {
-      setCompanySlug(slug);
-    }
-  }, [slug, setCompanySlug]);
 
   // Fetch payments with date filter and player info
   const { data: payments = [], isLoading: loadingPayments } = useQuery({
@@ -286,9 +279,9 @@ export default function EmpresaFinanceiro() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                {p.player_id && slug && (
+                {p.player_id && (
                   <DropdownMenuItem asChild>
-                    <Link to={`/empresa/${slug}/jogadores/${p.player_id}`} className="flex items-center gap-2">
+                    <Link to={`/admin/jogadores/${p.player_id}`} className="flex items-center gap-2">
                       <Eye className="h-4 w-4" />
                       Ver perfil
                     </Link>
@@ -300,7 +293,7 @@ export default function EmpresaFinanceiro() {
                 </DropdownMenuItem>
                 {isPending && (
                   <>
-                    {p.player_id && slug && <DropdownMenuSeparator />}
+                    {p.player_id && <DropdownMenuSeparator />}
                     <DropdownMenuItem onClick={() => paymentControls[p.id]?.openApprove()} className="gap-2">
                       <CheckCircle className="h-4 w-4" />
                       Aprovar pagamento

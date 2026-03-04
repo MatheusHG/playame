@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -28,14 +28,10 @@ interface TrackingData {
 }
 
 export default function AcompanharSorteio() {
-  const { slug, raffleId } = useParams<{ slug: string; raffleId: string }>();
+  const { raffleId } = useParams<{ raffleId: string }>();
   const [searchParams] = useSearchParams();
   const ref = searchParams.get('ref');
-  const { setCompanySlug, company, loading: tenantLoading } = useTenant();
-
-  useEffect(() => {
-    if (slug) setCompanySlug(slug);
-  }, [slug, setCompanySlug]);
+  const { company, loading: tenantLoading } = useTenant();
 
   useCompanyBranding();
 
@@ -121,7 +117,7 @@ export default function AcompanharSorteio() {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-3 mb-4">
             <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10" asChild>
-              <Link to={`/empresa/${slug}/sorteio/${raffleId}`}>
+              <Link to={`/sorteio/${raffleId}`}>
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
@@ -339,7 +335,7 @@ export default function AcompanharSorteio() {
         {/* Buy ticket CTA */}
         <div className="text-center py-4">
           <Button asChild size="lg">
-            <Link to={`/empresa/${slug}/sorteio/${raffleId}`}>
+            <Link to={`/sorteio/${raffleId}`}>
               <Ticket className="h-4 w-4 mr-2" />
               Comprar Cartela
             </Link>

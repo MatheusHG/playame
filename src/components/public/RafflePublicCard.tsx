@@ -12,14 +12,13 @@ import { ptBR } from 'date-fns/locale';
 
 interface RafflePublicCardProps {
   raffle: any;
-  companySlug: string;
 }
 
-export function RafflePublicCard({ raffle, companySlug }: RafflePublicCardProps) {
+export function RafflePublicCard({ raffle }: RafflePublicCardProps) {
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState<{ text: string; isOpen: boolean }>({ text: '', isOpen: true });
   const [previewOpen, setPreviewOpen] = useState(false);
-  const detailUrl = `/empresa/${companySlug}/sorteio/${raffle.id}`;
+  const detailUrl = `/sorteio/${raffle.id}`;
 
   const ticketPrice = Number(raffle.ticket_price);
 

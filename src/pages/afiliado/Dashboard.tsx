@@ -7,7 +7,7 @@ import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { format, parseISO, subDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -73,7 +73,6 @@ interface AffiliateDashboardData {
 }
 
 export default function AffiliateDashboard() {
-  const { slug } = useParams<{ slug: string }>();
   const { affiliate, hasPermission } = useAffiliate();
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState({ from: startOfMonth(new Date()), to: new Date() });
@@ -90,7 +89,7 @@ export default function AffiliateDashboard() {
   const handleDateChange = (range: DateRange) => { if (range.from && range.to) setDateRange({ from: range.from, to: range.to }); };
 
   const copyLink = () => {
-    const url = `${window.location.origin}/empresa/${slug}?ref=${affiliate?.link_code}`;
+    const url = `${window.location.origin}/?ref=${affiliate?.link_code}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Link copiado!', description: 'Seu link de afiliado foi copiado para a área de transferência.' });
   };
@@ -125,12 +124,12 @@ export default function AffiliateDashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Seu Link de Afiliado</p>
-                  <p className="text-sm font-medium truncate mt-0.5">{window.location.origin}/empresa/{slug}?ref={affiliate.link_code}</p>
+                  <p className="text-sm font-medium truncate mt-0.5">{window.location.origin}/?ref={affiliate.link_code}</p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <Button variant="outline" size="sm" onClick={copyLink}><Copy className="h-4 w-4 mr-2" />Copiar</Button>
                   <Button variant="outline" size="sm" asChild>
-                    <a href={`${window.location.origin}/empresa/${slug}?ref=${affiliate.link_code}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                    <a href={`${window.location.origin}/?ref=${affiliate.link_code}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
                   </Button>
                 </div>
               </div>
@@ -261,7 +260,7 @@ export default function AffiliateDashboard() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"><Ticket className="h-5 w-5 text-blue-600" /></div>
                     <div><p className="font-semibold text-sm">Nova Venda</p><p className="text-xs text-muted-foreground">Registre uma venda</p></div>
                   </div>
-                  <Button asChild className="w-full"><Link to={`/afiliado/${slug}/nova-venda`}>Criar Venda</Link></Button>
+                  <Button asChild className="w-full"><Link to={"/afiliado/nova-venda"}>Criar Venda</Link></Button>
                 </CardContent>
               </Card>
             )}
@@ -273,7 +272,7 @@ export default function AffiliateDashboard() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100"><ShoppingCart className="h-5 w-5 text-emerald-600" /></div>
                     <div><p className="font-semibold text-sm">Minhas Vendas</p><p className="text-xs text-muted-foreground">Acompanhe suas vendas</p></div>
                   </div>
-                  <Button variant="outline" asChild className="w-full"><Link to={`/afiliado/${slug}/vendas`}>Ver Vendas</Link></Button>
+                  <Button variant="outline" asChild className="w-full"><Link to={"/afiliado/vendas"}>Ver Vendas</Link></Button>
                 </CardContent>
               </Card>
             )}
@@ -285,7 +284,7 @@ export default function AffiliateDashboard() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100"><Users className="h-5 w-5 text-violet-600" /></div>
                     <div><p className="font-semibold text-sm">Minha Equipe</p><p className="text-xs text-muted-foreground">Gerencie cambistas</p></div>
                   </div>
-                  <Button variant="outline" asChild className="w-full"><Link to={`/afiliado/${slug}/equipe`}>Ver Equipe</Link></Button>
+                  <Button variant="outline" asChild className="w-full"><Link to={"/afiliado/equipe"}>Ver Equipe</Link></Button>
                 </CardContent>
               </Card>
             )}

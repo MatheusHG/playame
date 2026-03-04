@@ -4,13 +4,14 @@ import { requireCompanyAccess, requireCompanyAdmin } from '../middleware/roleGua
 import * as paymentService from '../services/payment.service.js';
 import { prisma } from '../config/database.js';
 import { AuthRequest } from '../types/index.js';
+import { getCompanyId } from '../utils/tenant.js';
 
 const router = Router();
 
 // GET /company/:companyId - auth + company access
 router.get('/company/:companyId', authMiddleware, requireCompanyAccess(), async (req: AuthRequest, res, next) => {
   try {
-    const result = await paymentService.getByCompany(req.params.companyId as string);
+    const result = await paymentService.getByCompany(getCompanyId(req));
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -97,7 +98,7 @@ router.get('/net-sales/:raffleId', async (req, res, next) => {
 // GET /net-sales-by-raffle/:companyId - public, returns prize_pool_contribution per raffle
 router.get('/net-sales-by-raffle/:companyId', async (req, res, next) => {
   try {
-    const companyId = req.params.companyId as string;
+    const companyId = getCompanyId(req as any);
     const raffleIdsParam = req.query.raffleIds as string;
     if (!raffleIdsParam) {
       res.json({});
