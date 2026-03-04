@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,15 +27,11 @@ export function StripeConfigCard({ companyId, hasStripeConfigured }: StripeConfi
 
   const validateMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manage-stripe-keys', {
-        body: {
-          action: 'validate',
-          companyId,
-          stripeSecretKey,
-        },
+      const data = await api.post<any>('/stripe/manage-keys', {
+        action: 'validate',
+        companyId,
+        stripeSecretKey,
       });
-
-      if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
@@ -53,16 +49,12 @@ export function StripeConfigCard({ companyId, hasStripeConfigured }: StripeConfi
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manage-stripe-keys', {
-        body: {
-          action: 'save',
-          companyId,
-          stripeSecretKey,
-          stripeWebhookSecret: stripeWebhookSecret || undefined,
-        },
+      const data = await api.post<any>('/stripe/manage-keys', {
+        action: 'save',
+        companyId,
+        stripeSecretKey,
+        stripeWebhookSecret: stripeWebhookSecret || undefined,
       });
-
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -79,14 +71,10 @@ export function StripeConfigCard({ companyId, hasStripeConfigured }: StripeConfi
 
   const clearMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manage-stripe-keys', {
-        body: {
-          action: 'clear',
-          companyId,
-        },
+      const data = await api.post<any>('/stripe/manage-keys', {
+        action: 'clear',
+        companyId,
       });
-
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {

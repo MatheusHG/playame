@@ -1,18 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
-import { RaffleForm, type RaffleFormData } from '@/components/empresa/RaffleForm';
+import { RaffleForm, type RaffleFormData, type PrizeTierInput } from '@/components/empresa/RaffleForm';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useRaffleMutations } from '@/hooks/useRaffles';
+import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 
 export default function NovoSorteio() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { setCompanySlug, company, loading } = useTenant();
   const { createRaffle } = useRaffleMutations(company?.id);
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -20,7 +24,8 @@ export default function NovoSorteio() {
     }
   }, [slug, setCompanySlug]);
 
-  const handleSubmit = (data: RaffleFormData) => {
+  const handleSubmit = (data: RaffleFormData, tiers: PrizeTierInput[]) => {
+    setIsSaving(true);
     createRaffle.mutate(
       {
         name: data.name,
@@ -39,9 +44,24 @@ export default function NovoSorteio() {
         image_url: data.image_url || null,
       },
       {
-        onSuccess: (raffle) => {
+        onSuccess: async (raffle) => {
+          // Save prize tiers with the new raffle ID
+          if (tiers.length > 0) {
+            try {
+              await api.put(`/raffles/${raffle.id}/prize-tiers`, {
+                tiers: tiers.map(({ id, ...rest }) => rest),
+              });
+            } catch (error: any) {
+              toast({
+                variant: 'destructive',
+                title: 'Sorteio criado, mas erro ao salvar faixas',
+                description: error.message || 'Você pode configurar as faixas na página do sorteio.',
+              });
+            }
+          }
           navigate(`/empresa/${slug}/sorteios/${raffle.id}`);
         },
+        onSettled: () => setIsSaving(false),
       }
     );
   };
@@ -52,19 +72,18 @@ export default function NovoSorteio() {
 
   return (
     <EmpresaLayout title="Novo Sorteio" description="Crie um novo sorteio para sua empresa">
-      <Button variant="ghost" className="mb-6" onClick={() => navigate(-1)}>
+      <Button variant="ghost" className="mb-6 rounded-xl" onClick={() => navigate(-1)}>
         <ArrowLeft className="mr-2 h-4 w-4" />
         Voltar
       </Button>
 
-      <div className="max-w-3xl">
-        <RaffleForm 
-          companyId={company?.id || ''} 
-          onSubmit={handleSubmit} 
-          isLoading={createRaffle.isPending} 
-          submitLabel="Criar Sorteio" 
-        />
-      </div>
+      <RaffleForm
+        companyId={company?.id || ''}
+        adminFeePercent={company?.admin_fee_percentage ?? 10}
+        onSubmit={handleSubmit}
+        isLoading={createRaffle.isPending || isSaving}
+        submitLabel="Criar Sorteio"
+      />
     </EmpresaLayout>
   );
 }

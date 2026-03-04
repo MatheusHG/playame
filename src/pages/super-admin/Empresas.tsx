@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Settings, Pause, Play, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Settings, Pause, Play, Trash2, MoreVertical, LogIn } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,26 +42,14 @@ export default function SuperAdminEmpresas() {
   const { data: companies = [], isLoading } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Company[];
+      const data = await api.get<Company[]>('/companies');
+      return data;
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (company: { name: string; slug: string }) => {
-      const { data, error } = await supabase
-        .from('companies')
-        .insert([company])
-        .select()
-        .single();
-      
-      if (error) throw error;
+      const data = await api.post<Company>('/companies', company);
       return data;
     },
     onSuccess: () => {
@@ -83,12 +71,7 @@ export default function SuperAdminEmpresas() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: CompanyStatus }) => {
-      const { error } = await supabase
-        .from('companies')
-        .update({ status })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await api.patch(`/companies/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
@@ -105,12 +88,7 @@ export default function SuperAdminEmpresas() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('companies')
-        .update({ status: 'deleted', deleted_at: new Date().toISOString() })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await api.delete(`/companies/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
@@ -181,6 +159,10 @@ export default function SuperAdminEmpresas() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => navigate(`/empresa/${item.slug}/dashboard`)} className="gap-2">
+              <LogIn className="h-4 w-4" />
+              Acessar empresa
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate(`/super-admin/empresas/${item.id}/configurar`)} className="gap-2">
               <Settings className="h-4 w-4" />
               Configurar

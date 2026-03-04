@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,15 +28,7 @@ export default function EsqueciSenha() {
   const { data: company, isLoading: companyLoading } = useQuery({
     queryKey: ['company', slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .single();
-
-      if (error) throw error;
+      const data = await api.get<any>(`/companies/by-slug/${slug}`);
       return data;
     },
     enabled: !!slug,
@@ -57,14 +49,11 @@ export default function EsqueciSenha() {
 
     try {
       const redirectUrl = `${window.location.origin}/afiliado/${slug}/redefinir-senha`;
-      
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+
+      await api.post('/auth/reset-password', {
+        email,
         redirectTo: redirectUrl,
       });
-
-      if (resetError) {
-        throw resetError;
-      }
 
       setSent(true);
       toast({

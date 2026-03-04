@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { usePlatformSettings, useAffiliateCommissions } from '@/hooks/useAffiliates';
 import { CommissionSplitTable } from '@/components/empresa/CommissionSplitTable';
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
@@ -36,16 +36,7 @@ export default function SuperAdminAfiliados() {
   const { data: allAffiliates = [], isLoading: affiliatesLoading } = useQuery({
     queryKey: ['all-affiliates'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('affiliates')
-        .select(`
-          *,
-          company:companies(name)
-        `)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get<any[]>('/affiliates/all');
       return data;
     },
   });
@@ -54,14 +45,8 @@ export default function SuperAdminAfiliados() {
   const { data: rateChanges = [], isLoading: changesLoading } = useQuery({
     queryKey: ['commission-rate-changes'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('commission_rate_changes')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      return data as CommissionRateChange[];
+      const data = await api.get<CommissionRateChange[]>('/commission-rate-changes');
+      return data;
     },
   });
 

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 interface Player {
   id: string;
   name: string;
   cpf_last4: string;
+  cpf_encrypted?: string | null;
   city: string | null;
   phone?: string | null;
 }
@@ -34,8 +35,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const { player, companyId, sessionToken } = JSON.parse(stored);
-        if (player && companyId && sessionToken) {
+        const { player, companyId, token } = JSON.parse(stored);
+        if (player && companyId && token) {
           setPlayer(player);
           setCompanyId(companyId);
         }
@@ -48,19 +49,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (companyId: string, cpf: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { data, error } = await supabase.functions.invoke('player-auth', {
-        body: { action: 'login', companyId, cpf, password },
-      });
-
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+      const data = await api.post<{
+        player: Player;
+        token: string;
+      }>('/players/auth', { action: 'login', companyId, cpf, password });
 
       setPlayer(data.player);
       setCompanyId(companyId);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         player: data.player,
         companyId,
-        sessionToken: data.sessionToken,
+        token: data.token,
       }));
 
       return {};
@@ -74,19 +73,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     data: { cpf: string; password: string; name: string; city?: string; phone?: string }
   ): Promise<{ error?: string }> => {
     try {
-      const { data: response, error } = await supabase.functions.invoke('player-auth', {
-        body: { action: 'register', companyId, ...data },
-      });
-
-      if (error) throw new Error(error.message);
-      if (response.error) throw new Error(response.error);
+      const response = await api.post<{
+        player: Player;
+        token: string;
+      }>('/players/auth', { action: 'register', companyId, ...data });
 
       setPlayer(response.player);
       setCompanyId(companyId);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         player: response.player,
         companyId,
-        sessionToken: response.sessionToken,
+        token: response.token,
       }));
 
       return {};

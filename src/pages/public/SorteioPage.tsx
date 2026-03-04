@@ -1,28 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Trophy, Clock, DollarSign, Hash, ShoppingCart, Loader2, Check, Shuffle, Ticket, Timer, AlertCircle, Plus, Minus, X, Lock } from 'lucide-react';
-import { formatDistanceToNow, differenceInSeconds, differenceInDays, differenceInHours, differenceInMinutes, format } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ArrowLeft, Trophy, Hash, ShoppingCart, Loader2, Check, AlertCircle, Plus, X, Lock, RotateCcw, Sparkles, Crown, Medal, Star, Gift, Info, ScrollText, Radio, Clock, CreditCard } from 'lucide-react';
+import { differenceInSeconds, differenceInDays, differenceInHours, differenceInMinutes, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { PublicRanking } from '@/components/public/PublicRanking';
-import { PrizeTiersDisplay } from '@/components/public/PrizeTiersDisplay';
-import { cn } from '@/lib/utils';
-import type { Database } from '@/integrations/supabase/types';
-import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
 
-type Raffle = Database['public']['Tables']['raffles']['Row'] & {
-  prize_tiers: Database['public']['Tables']['prize_tiers']['Row'][];
-};
+import { cn } from '@/lib/utils';
+import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
+import { PublicFooter } from '@/components/public/PublicFooter';
+import { PromotionCombos } from '@/components/public/PromotionCombos';
+import { useDrawnNumbers } from '@/hooks/useRaffles';
 
 interface TicketSelection {
   id: number;
@@ -62,21 +61,14 @@ export default function SorteioPage() {
   useEffect(() => {
     const fetchAffiliateByRef = async () => {
       const refCode = searchParams.get('ref') || (slug ? localStorage.getItem(`affiliate_ref_${slug}`) : null);
-      
+
       if (!refCode || !company?.id) {
         setAffiliateId(null);
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .rpc('get_affiliate_by_link_code', { _link_code: refCode });
-
-        if (error) {
-          console.error('Error fetching affiliate by ref:', error);
-          setAffiliateId(null);
-          return;
-        }
+        const data = await api.post<any[]>('/affiliates/by-link-code', { linkCode: refCode });
 
         // Find affiliate that matches this company and is not paused
         const validAffiliate = data?.find(
@@ -110,19 +102,18 @@ export default function SorteioPage() {
     if (!player?.id || !raffleId || !company?.id) return;
 
     const checkPendingPayments = async () => {
-      const { data } = await supabase
-        .from('payments')
-        .select('id, amount')
-        .eq('player_id', player.id)
-        .eq('raffle_id', raffleId)
-        .eq('company_id', company.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      try {
+        const data = await api.playerGet<any[]>(`/payments/pending/${player.id}`, {
+          raffleId,
+          companyId: company.id,
+        });
 
-      if (data && data.length > 0) {
-        setPendingPayment({ id: data[0].id, amount: Number(data[0].amount) });
-        setPendingPaymentDialogOpen(true);
+        if (data && data.length > 0) {
+          setPendingPayment({ id: data[0].id, amount: Number(data[0].amount) });
+          setPendingPaymentDialogOpen(true);
+        }
+      } catch (err) {
+        console.error('Error checking pending payments:', err);
       }
     };
 
@@ -133,10 +124,10 @@ export default function SorteioPage() {
     if (!pendingPayment || !player) return;
     setIsResumingPayment(true);
     try {
-      const { data, error } = await supabase.functions.invoke('resume-checkout', {
-        body: { paymentId: pendingPayment.id, playerId: player.id },
+      const data = await api.playerPost<any>('/resume-checkout', {
+        paymentId: pendingPayment.id,
+        playerId: player.id,
       });
-      if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
@@ -157,14 +148,8 @@ export default function SorteioPage() {
     queryKey: ['public-raffle', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('raffles')
-        .select('*, prize_tiers(*)')
-        .eq('id', raffleId!)
-        .single();
-
-      if (error) throw error;
-      return data as Raffle;
+      const data = await api.get<any>(`/raffles/${raffleId}`, { include: 'prize_tiers' });
+      return data;
     },
   });
 
@@ -173,22 +158,29 @@ export default function SorteioPage() {
     queryKey: ['raffle-total-net-sales', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('net_amount')
-        .eq('raffle_id', raffleId!)
-        .eq('status', 'succeeded');
-
-      if (error) throw error;
-      return data?.reduce((sum, p) => sum + Number(p.net_amount || 0), 0) || 0;
+      const data = await api.get<{ total: number }>(`/payments/net-sales/${raffleId}`);
+      return data.total || 0;
     },
   });
+
+  // Fetch raffle discounts
+  const { data: discounts = [] } = useQuery({
+    queryKey: ['raffle-discounts', raffleId],
+    enabled: !!raffleId,
+    queryFn: async () => {
+      return api.get<any[]>(`/raffles/${raffleId}/discounts`);
+    },
+  });
+
+  // Fetch already-drawn numbers (from finalized batches)
+  const { data: drawnNumbersSet = new Set<number>() } = useDrawnNumbers(raffleId);
 
   // Check if raffle is open based on scheduled_at (start date)
   const [countdown, setCountdown] = useState<{ text: string; isOpen: boolean }>({ text: '', isOpen: true });
 
   useEffect(() => {
-    if (!raffle?.scheduled_at) {
+    // If raffle is already active, skip countdown regardless of scheduled_at
+    if (!raffle?.scheduled_at || raffle.status === 'active') {
       setCountdown({ text: '', isOpen: true });
       return;
     }
@@ -227,7 +219,7 @@ export default function SorteioPage() {
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [raffle?.scheduled_at]);
+  }, [raffle?.scheduled_at, raffle?.status]);
 
   // Generate numbers for selection
   const availableNumbers = useMemo(() => {
@@ -240,16 +232,17 @@ export default function SorteioPage() {
   }, [raffle]);
 
   // Calculate prize pool
+  // netSales already equals SUM(prize_pool_contribution) from backend
   const calculatePrizePool = (): number => {
     if (!raffle) return 0;
     if (raffle.prize_mode === 'FIXED') {
       return Number(raffle.fixed_prize_value) || 0;
     }
     if (raffle.prize_mode === 'PERCENT_ONLY') {
-      return netSales * (Number(raffle.prize_percent_of_sales) / 100);
+      return netSales;
     }
     // FIXED_PLUS_PERCENT
-    return (Number(raffle.fixed_prize_value) || 0) + netSales * (Number(raffle.prize_percent_of_sales) / 100);
+    return (Number(raffle.fixed_prize_value) || 0) + netSales;
   };
 
   const prizePool = calculatePrizePool();
@@ -259,7 +252,8 @@ export default function SorteioPage() {
 
   const toggleNumber = (num: number) => {
     if (!raffle) return;
-    
+    if (drawnNumbersSet.has(num)) return; // Block already-drawn numbers
+
     setTickets((prev) => {
       let didCompleteActiveTicket = false;
 
@@ -294,8 +288,9 @@ export default function SorteioPage() {
 
   const generateRandomNumbers = () => {
     if (!raffle) return;
-    
-    const shuffled = [...availableNumbers].sort(() => Math.random() - 0.5);
+
+    const pool = availableNumbers.filter((n) => !drawnNumbersSet.has(n));
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
     setTickets((prev) => {
       const next = prev.map((ticket) => {
         if (ticket.id !== activeTicketId) return ticket;
@@ -319,10 +314,32 @@ export default function SorteioPage() {
 
   const removeTicket = (ticketId: number) => {
     if (tickets.length <= 1) return;
-    
+
     setTickets(prev => prev.filter(t => t.id !== ticketId));
     if (activeTicketId === ticketId) {
       setActiveTicketId(tickets.find(t => t.id !== ticketId)?.id || tickets[0].id);
+    }
+  };
+
+  const handleSelectCombo = (targetQuantity: number) => {
+    if (tickets.length >= targetQuantity) return;
+
+    const toAdd = targetQuantity - tickets.length;
+    const maxId = Math.max(...tickets.map(t => t.id));
+    const newTickets = Array.from({ length: toAdd }, (_, i) => ({
+      id: maxId + i + 1,
+      numbers: [] as number[],
+    }));
+
+    const allTickets = [...tickets, ...newTickets];
+    setTickets(allTickets);
+
+    // Navigate to first incomplete ticket
+    const firstIncomplete = allTickets.find(
+      t => t.numbers.length < (raffle?.numbers_per_ticket || 0)
+    );
+    if (firstIncomplete) {
+      setActiveTicketId(firstIncomplete.id);
     }
   };
 
@@ -332,23 +349,39 @@ export default function SorteioPage() {
   const quantity = tickets.length;
   const totalPrice = ticketPrice * quantity;
 
+  // Calculate best discount
+  const validDiscounts = discounts.filter(d => d.is_active);
+  const bestDiscount = validDiscounts.sort((a, b) => b.min_quantity - a.min_quantity).find(d => quantity >= d.min_quantity);
+  const discountPercent = bestDiscount ? Number(bestDiscount.discount_percent) : 0;
+  const discountAmount = totalPrice * (discountPercent / 100);
+  const finalPrice = totalPrice - discountAmount;
+
+  // Prize tiers data (used in hero section)
+  const sortedTiers = [...(raffle?.prize_tiers || [])].sort((a: any, b: any) => b.hits_required - a.hits_required);
+  const getTierIcon = (index: number) => {
+    if (index === 0) return <Crown className="h-5 w-5 text-yellow-400" />;
+    if (index === 1) return <Medal className="h-5 w-5 text-gray-300" />;
+    if (index === 2) return <Medal className="h-5 w-5 text-amber-500" />;
+    return <Star className="h-5 w-5 text-blue-300" />;
+  };
+  const maxDiscountValue = validDiscounts.length > 0
+    ? Math.max(...validDiscounts.map(d => Number(d.discount_percent)))
+    : 0;
+
   const handlePurchase = async () => {
     if (!player || !raffle) return;
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-ticket-checkout', {
-        body: {
-          companyId: raffle.company_id,
-          playerId: player.id,
-          raffleId: raffle.id,
-          quantity: tickets.length,
-          ticketNumbers: tickets.map(t => t.numbers.sort((a, b) => a - b)),
-          affiliateId: affiliateId || undefined,
-        },
+      const data = await api.playerPost<any>('/create-ticket-checkout', {
+        companyId: raffle.company_id,
+        playerId: player.id,
+        raffleId: raffle.id,
+        quantity: tickets.length,
+        ticketNumbers: tickets.map(t => t.numbers.sort((a, b) => a - b)),
+        affiliateId: affiliateId || undefined,
       });
 
-      if (error) throw error;
       if (data.error) throw new Error(data.error);
 
       if (data.manual) {
@@ -414,6 +447,7 @@ export default function SorteioPage() {
             <Link to={`/empresa/${slug}`}>Voltar</Link>
           </Button>
         </div>
+        <PublicFooter />
       </div>
     );
   }
@@ -422,11 +456,11 @@ export default function SorteioPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b" style={{ backgroundColor: company.primary_color }}>
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-50 border-b backdrop-blur-md" style={{ backgroundColor: `${company.primary_color}F2` }}>
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <Link to={`/empresa/${slug}`} className="flex items-center gap-2 text-white">
             <ArrowLeft className="h-5 w-5" />
-            <span>{company.name}</span>
+            <span className="font-medium">{company.name}</span>
           </Link>
 
           {isAuthenticated ? (
@@ -449,303 +483,647 @@ export default function SorteioPage() {
         </div>
       </header>
 
-      {/* Hero with optional image */}
-      <section
-        className="py-8 text-white relative overflow-hidden"
-        style={{
-          background: raffle.image_url 
-            ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(${raffle.image_url})` 
-            : `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">{raffle.name}</h1>
-          {raffle.description && <p className="text-white/80 mb-4">{raffle.description}</p>}
-
-          <div className="flex flex-wrap gap-4">
-            <div className="bg-white/20 rounded-lg px-4 py-2 flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              <div>
-                <p className="font-bold">R$ {ticketPrice.toFixed(2)}</p>
-                <p className="text-xs text-white/80">por cartela</p>
-              </div>
+      {/* Hero - Product Showcase */}
+      <section className="bg-muted/30 border-b">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="grid gap-6 lg:grid-cols-2 items-start">
+            {/* Left: Raffle Image */}
+            <div className="relative">
+              {raffle.image_url ? (
+                <div className="relative overflow-hidden rounded-2xl shadow-lg">
+                  <img
+                    src={raffle.image_url}
+                    alt={raffle.name}
+                    className="w-full aspect-[4/3] object-cover"
+                  />
+                  {/* Price Badge overlay */}
+                  <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-md">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cartela</p>
+                    <p className="text-xl font-extrabold text-foreground">R$ {ticketPrice.toFixed(2)}</p>
+                  </div>
+                  {/* Status Badge */}
+                  <div className="absolute top-3 right-3 flex gap-1.5">
+                    {maxDiscountValue > 0 && (
+                      <Badge className="bg-green-600 text-white text-xs shadow-sm">
+                        Até {maxDiscountValue}% OFF
+                      </Badge>
+                    )}
+                    <Badge className="bg-primary text-primary-foreground text-xs shadow-sm">Ativo</Badge>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="w-full aspect-[4/3] rounded-2xl shadow-lg flex items-center justify-center"
+                  style={{ background: `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})` }}
+                >
+                  <Trophy className="h-16 w-16 text-white/30" />
+                  {/* Price Badge overlay */}
+                  <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-md">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cartela</p>
+                    <p className="text-xl font-extrabold text-foreground">R$ {ticketPrice.toFixed(2)}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {!countdown.isOpen && countdown.text && (
-              <div className="bg-amber-500/80 rounded-lg px-4 py-2 flex items-center gap-2">
-                <Timer className="h-5 w-5" />
-                <div>
-                  <p className="font-bold">{countdown.text}</p>
-                  <p className="text-xs text-white/80">para abrir</p>
+            {/* Right: Raffle Info */}
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{raffle.name}</h1>
+                {raffle.description && (
+                  <p className="text-muted-foreground text-sm mt-1 line-clamp-3">{raffle.description}</p>
+                )}
+              </div>
+
+              {/* Key Stats */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 bg-background rounded-xl border p-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Trophy className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-primary">R$ {prizePool.toFixed(2)}</p>
+                    <p className="text-[11px] text-muted-foreground">Prêmio total</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-background rounded-xl border p-3">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Hash className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{raffle.numbers_per_ticket} números</p>
+                    <p className="text-[11px] text-muted-foreground">{raffle.number_range_start}–{raffle.number_range_end}</p>
+                  </div>
                 </div>
               </div>
-            )}
 
-            <div className="bg-white/20 rounded-lg px-4 py-2 flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              <div>
-                <p className="font-bold">R$ {prizePool.toFixed(2)}</p>
-                <p className="text-xs text-white/80">prêmio total</p>
+              {/* Info Chips */}
+              <div className="flex flex-wrap gap-2">
+                {raffle.scheduled_at && (
+                  <Badge variant="outline" className="gap-1.5 py-1 px-2.5 text-xs font-medium">
+                    <Clock className="h-3 w-3" />
+                    {format(new Date(raffle.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="gap-1.5 py-1 px-2.5 text-xs font-medium">
+                  <Hash className="h-3 w-3" />
+                  {raffle.current_draw_count || 0} rodadas
+                </Badge>
+                <Badge variant="outline" className="gap-1.5 py-1 px-2.5 text-xs font-medium">
+                  <Trophy className="h-3 w-3" />
+                  {raffle.prize_mode === 'FIXED' ? 'Prêmio Fixo'
+                    : raffle.prize_mode === 'PERCENT_ONLY' ? '% das Vendas'
+                    : 'Fixo + %'}
+                </Badge>
               </div>
+
+              {/* Acompanhar o sorteio */}
+              <Link
+                to={`/empresa/${slug}/sorteio/${raffleId}/acompanhar`}
+                className="inline-flex items-center gap-2 bg-primary/10 rounded-xl px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors w-fit"
+              >
+                <Radio className="h-4 w-4 animate-pulse" />
+                Acompanhar o sorteio ao vivo
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Number Selection */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Ticket Tabs */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Ticket className="h-5 w-5" />
-                    Suas Cartelas ({tickets.length})
-                  </CardTitle>
-                  <Button variant="outline" size="sm" onClick={addTicket}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Adicionar Cartela
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tickets.map((ticket, index) => (
-                    <div key={ticket.id} className="relative">
-                      <Button
-                        variant={activeTicketId === ticket.id ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setActiveTicketId(ticket.id)}
-                        className={cn(
-                          'pr-8',
-                          ticket.numbers.length === raffle.numbers_per_ticket && 'border-green-500'
-                        )}
-                      >
-                        Cartela {index + 1}
-                        {ticket.numbers.length === raffle.numbers_per_ticket && (
-                          <Check className="h-3 w-3 ml-1 text-green-500" />
-                        )}
-                      </Button>
-                      {tickets.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeTicket(ticket.id);
-                          }}
-                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+      {/* Prize Tiers - Standalone Section */}
+      {sortedTiers.length > 0 && (
+        <section className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-semibold">Distribuição dos Prêmios</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {sortedTiers.map((tier: any, index: number) => {
+                const tierPrize = tier.prize_type === 'money'
+                  ? prizePool * (Number(tier.prize_percentage) / 100)
+                  : 0;
+                const currentDraw = raffle?.current_draw_count ?? 0;
+                const tierLimit = tier.purchase_allowed_until_draw_count;
+                const isEligible = tierLimit == null || tierLimit >= currentDraw;
+                return (
+                  <div
+                    key={tier.id}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border p-3',
+                      !isEligible
+                        ? 'bg-muted/30 border-muted opacity-60'
+                        : index === 0
+                          ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800'
+                          : 'bg-background'
+                    )}
+                  >
+                    {getTierIcon(index)}
+                    <div className="flex-1 min-w-0">
+                      <p className={cn('text-sm font-semibold', !isEligible && 'line-through')}>{tier.hits_required} acertos</p>
+                      <p className="text-xs text-muted-foreground">{tier.prize_percentage}% do prêmio</p>
+                      {tierLimit != null && (
+                        <p className={cn('text-[10px] mt-0.5', isEligible ? 'text-green-600' : 'text-red-500')}>
+                          {isEligible
+                            ? `Elegível (até ${tierLimit}ª rodada)`
+                            : `Encerrado na ${tierLimit}ª rodada`}
+                        </p>
                       )}
                     </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="font-medium">Cartela {tickets.findIndex(t => t.id === activeTicketId) + 1}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Selecione {raffle.numbers_per_ticket} números entre {raffle.number_range_start} e {raffle.number_range_end}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="outline" className="text-sm">
-                        {selectedNumbers.length} / {raffle.numbers_per_ticket}
-                      </Badge>
-                      <Button variant="outline" size="sm" onClick={() => setTickets(prev => prev.map(t => t.id === activeTicketId ? { ...t, numbers: [] } : t))}>
-                        Limpar
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={generateRandomNumbers}>
-                        <Shuffle className="mr-1 h-4 w-4" />
-                        Sortear
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border bg-background p-3 sm:p-4">
-                    <div className="max-h-[420px] overflow-auto pr-1">
-                      <div className="grid grid-cols-10 sm:grid-cols-12 gap-1">
-                        {availableNumbers.map((num) => {
-                          const isSelected = selectedNumbers.includes(num);
-                          const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
-
-                          return (
-                            <button
-                              key={num}
-                              onClick={() => toggleNumber(num)}
-                              disabled={isFull}
-                              className={cn(
-                                'h-9 w-full rounded-md font-mono text-xs sm:text-sm font-semibold transition-colors',
-                                'flex items-center justify-center',
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted hover:bg-muted/80',
-                                isFull && 'opacity-50 cursor-not-allowed'
-                              )}
-                            >
-                              {String(num).padStart(2, '0')}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {selectedNumbers.length > 0 && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-sm text-muted-foreground mb-2">Números selecionados:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedNumbers
-                            .sort((a, b) => a - b)
-                            .map((num) => (
-                              <Badge key={num} variant="default" className="font-mono text-sm px-2">
-                                {String(num).padStart(2, '0')}
-                              </Badge>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </CardContent>
-              <CardFooter className="flex-col gap-4 border-t pt-6">
-                {/* Countdown Warning if not open */}
-                {!countdown.isOpen && countdown.text && (
-                  <div className="w-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Lock className="h-5 w-5 text-amber-600" />
-                      <span className="font-medium text-amber-800 dark:text-amber-200">Sorteio abre em</span>
-                    </div>
-                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 font-mono">
-                      {countdown.text}
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                      Você pode visualizar as informações, mas as compras estarão disponíveis após a abertura.
-                    </p>
-                  </div>
-                )}
-
-
-                {/* Summary */}
-                <div className="w-full bg-muted rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                    <span>R$ {totalPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-lg border-t pt-2">
-                    <span>Total</span>
-                    <span>R$ {totalPrice.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {countdown.isOpen ? (
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    disabled={!allTicketsComplete}
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        openAuth('login');
-                      } else {
-                        setPurchaseDialogOpen(true);
-                      }
-                    }}
-                  >
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                    {allTicketsComplete 
-                      ? `Comprar ${tickets.length} Cartela(s) - R$ ${totalPrice.toFixed(2)}`
-                      : `Complete todas as cartelas (${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length})`
-                    }
-                  </Button>
-                ) : (
-                  <Button size="lg" className="w-full" disabled variant="secondary">
-                    <Lock className="mr-2 h-5 w-5" />
-                    Aguardando Abertura
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-
-            {/* Ranking */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  Ranking
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PublicRanking raffleId={raffle.id} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Prize Tiers with Winners */}
-            <PrizeTiersDisplay 
-              raffleId={raffle.id}
-              prizeTiers={raffle.prize_tiers || []}
-              prizePool={prizePool}
-              currentDrawCount={raffle.current_draw_count || 0}
-              prizeMode={raffle.prize_mode}
-              fixedPrizeValue={raffle.fixed_prize_value}
-              prizePercentOfSales={raffle.prize_percent_of_sales}
-            />
-
-            {/* Raffle Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Sorteio</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Números por cartela</span>
-                  <span className="font-medium">{raffle.numbers_per_ticket}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Range de números</span>
-                  <span className="font-medium">
-                    {raffle.number_range_start} - {raffle.number_range_end}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rodadas realizadas</span>
-                  <span className="font-medium">{raffle.current_draw_count || 0}</span>
-                </div>
-                {raffle.scheduled_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data final</span>
-                    <span className="font-medium">
-                      {format(new Date(raffle.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    <span className={cn(
+                      'font-bold text-sm shrink-0',
+                      !isEligible ? 'text-muted-foreground line-through' : index === 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'
+                    )}>
+                      {tier.prize_type === 'object'
+                        ? <span className="flex items-center gap-1 text-xs"><Gift className="h-3 w-3" />{tier.object_description}</span>
+                        : `R$ ${tierPrize.toFixed(2)}`}
                     </span>
                   </div>
-                )}
+                );
+              })}
+            </div>
+            {(raffle?.current_draw_count ?? 0) > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Rodada atual: {raffle.current_draw_count}ª — Comprando agora, você concorre apenas aos prêmios marcados como "Elegível".
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6 pb-40 lg:pb-6">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Column - Ticket Selection */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Promotion Combos */}
+            {validDiscounts.length > 0 && (
+              <PromotionCombos
+                discounts={discounts}
+                ticketPrice={ticketPrice}
+                currentQuantity={tickets.length}
+                onSelectCombo={handleSelectCombo}
+              />
+            )}
+
+            {/* Countdown Warning if not open */}
+            {!countdown.isOpen && countdown.text && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Sorteio abre em</span>
+                </div>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 font-mono">
+                  {countdown.text}
+                </p>
+              </div>
+            )}
+
+            {/* Ticket Manager */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary" />
+                Suas Cartelas ({tickets.length})
+              </h2>
+              <button
+                onClick={addTicket}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary transition-colors whitespace-nowrap"
+              >
+                <Plus className="h-3 w-3" />
+                Adicionar
+              </button>
+            </div>
+
+            {/* Ticket Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {tickets.map((ticket, index) => {
+                const isActive = activeTicketId === ticket.id;
+                const isComplete = ticket.numbers.length === raffle.numbers_per_ticket;
+                return (
+                  <button
+                    key={ticket.id}
+                    onClick={() => setActiveTicketId(ticket.id)}
+                    className={cn(
+                      'relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all shrink-0 border',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-sm border-primary'
+                        : isComplete
+                          ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
+                          : 'bg-background text-muted-foreground hover:bg-muted/50 border-muted'
+                    )}
+                  >
+                    {isComplete && <Check className="h-3 w-3" />}
+                    Cartela {index + 1}
+                    <span className="text-[10px] opacity-70">
+                      {ticket.numbers.length}/{raffle.numbers_per_ticket}
+                    </span>
+                    {tickets.length > 1 && (
+                      <span
+                        onClick={(e) => { e.stopPropagation(); removeTicket(ticket.id); }}
+                        className="ml-0.5 opacity-60 hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Number Selection Card */}
+            <Card className="rounded-xl overflow-hidden">
+              <CardContent className="p-4 space-y-3">
+                {/* Header: Progress + Actions */}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className="font-medium">Selecione {raffle.numbers_per_ticket} números</span>
+                    <span className="text-muted-foreground/60 ml-1 text-xs">
+                      ({raffle.number_range_start}–{raffle.number_range_end})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={generateRandomNumbers}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Sortear
+                    </Button>
+                    {selectedNumbers.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-muted-foreground"
+                        onClick={() => setTickets(prev => prev.map(t => t.id === activeTicketId ? { ...t, numbers: [] } : t))}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="space-y-1">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all duration-300',
+                        selectedNumbers.length === raffle.numbers_per_ticket
+                          ? 'bg-green-500'
+                          : 'bg-primary'
+                      )}
+                      style={{ width: `${(selectedNumbers.length / raffle.numbers_per_ticket) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-mono font-medium">
+                      {selectedNumbers.length}/{raffle.numbers_per_ticket} selecionados
+                    </span>
+                    {selectedNumbers.length === raffle.numbers_per_ticket && (
+                      <span className="text-green-600 font-medium flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Completa!
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-4 text-[11px] text-muted-foreground border-t border-b py-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-muted/80 border border-muted-foreground/20" />
+                    <span>Disponível</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-primary" />
+                    <span>Selecionado</span>
+                  </div>
+                  {drawnNumbersSet.size > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-full bg-red-100 dark:bg-red-950/30 border border-red-300 dark:border-red-700" />
+                      <span>Já sorteado</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-muted/30 border border-dashed border-muted-foreground/20" />
+                    <span>Bloqueado</span>
+                  </div>
+                </div>
+
+                {/* Number Grid */}
+                <div className="max-h-[400px] overflow-auto">
+                  <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5">
+                    {availableNumbers.map((num) => {
+                      const isSelected = selectedNumbers.includes(num);
+                      const isDrawn = drawnNumbersSet.has(num);
+                      const isFull = selectedNumbers.length >= raffle.numbers_per_ticket && !isSelected;
+
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => toggleNumber(num)}
+                          disabled={isFull || isDrawn}
+                          className={cn(
+                            'h-10 w-10 sm:h-9 sm:w-9 rounded-full font-mono text-xs font-semibold transition-all duration-150',
+                            'flex items-center justify-center select-none mx-auto',
+                            isDrawn
+                              ? 'bg-red-100 text-red-400 line-through cursor-not-allowed opacity-50 dark:bg-red-950/30 dark:text-red-500'
+                              : isSelected
+                                ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary ring-offset-2 ring-offset-background scale-105'
+                                : 'bg-muted/60 hover:bg-muted text-foreground/80 hover:text-foreground',
+                            !isDrawn && isFull && 'opacity-25 cursor-not-allowed hover:bg-muted/60'
+                          )}
+                        >
+                          {String(num).padStart(2, '0')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected numbers strip - Always visible */}
+                <div className="border-t pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-muted-foreground shrink-0">
+                      Seus números ({selectedNumbers.length}/{raffle.numbers_per_ticket}):
+                    </span>
+                  </div>
+                  {selectedNumbers.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedNumbers
+                        .sort((a, b) => a - b)
+                        .map((num) => (
+                          <button
+                            key={num}
+                            onClick={() => toggleNumber(num)}
+                            className="h-7 min-w-[32px] px-1.5 rounded-lg bg-primary/10 text-primary font-mono text-xs font-semibold hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center justify-center"
+                            title="Clique para remover"
+                          >
+                            {String(num).padStart(2, '0')}
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic">
+                      Nenhum número selecionado. Clique nos números acima ou use "Sortear".
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Regulations */}
-            {(raffle as any).regulations && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Regulamento</CardTitle>
+            {/* Accordion: Informações + Regulamento */}
+            <Accordion type="multiple" className="mt-6 space-y-2">
+              <AccordionItem value="informacoes" className="border rounded-xl px-4">
+                <AccordionTrigger className="hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-sm">Informações do Sorteio</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3 text-sm pb-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Números por cartela</span>
+                      <span className="font-medium">{raffle.numbers_per_ticket}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Range de números</span>
+                      <span className="font-medium">
+                        {raffle.number_range_start}–{raffle.number_range_end}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rodadas realizadas</span>
+                      <span className="font-medium">{raffle.current_draw_count || 0}</span>
+                    </div>
+                    {raffle.scheduled_at && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Data</span>
+                        <span className="font-medium">
+                          {format(new Date(raffle.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Modo de prêmio</span>
+                      <span className="font-medium">
+                        {raffle.prize_mode === 'FIXED' ? 'Valor Fixo'
+                          : raffle.prize_mode === 'PERCENT_ONLY' ? 'Percentual das Vendas'
+                          : raffle.prize_mode === 'FIXED_PLUS_PERCENT' ? 'Fixo + Percentual'
+                          : 'Não definido'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Prêmio total acumulado</span>
+                      <span className="font-bold text-primary">R$ {prizePool.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="regulamento" className="border rounded-xl px-4">
+                <AccordionTrigger className="hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <ScrollText className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-sm">Regulamento</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {(raffle as any).regulations ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-line pb-2">
+                      {(raffle as any).regulations}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum regulamento específico cadastrado para este sorteio.
+                    </p>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            {/* Ranking - Always visible */}
+            <div className="mt-6">
+              <PublicRanking raffleId={raffle.id} />
+            </div>
+          </div>
+
+          {/* Right Column - Purchase Summary (Sticky) */}
+          <div className="hidden lg:block">
+            <div className="sticky top-[4rem] space-y-4">
+              <Card className="rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    Resumo da Compra
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">
-                    {(raffle as any).regulations}
-                  </p>
+                <CardContent className="space-y-3">
+                  {/* Tickets list */}
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                    {tickets.map((ticket, index) => {
+                      const isComplete = ticket.numbers.length === raffle.numbers_per_ticket;
+                      return (
+                        <div
+                          key={ticket.id}
+                          className={cn(
+                            'rounded-lg border p-2 text-xs',
+                            isComplete ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : 'border-muted'
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">Cartela {index + 1}</span>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={isComplete ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+                                {isComplete ? <Check className="h-2.5 w-2.5 mr-0.5" /> : null}
+                                {ticket.numbers.length}/{raffle.numbers_per_ticket}
+                              </Badge>
+                              {tickets.length > 1 && (
+                                <button
+                                  onClick={() => removeTicket(ticket.id)}
+                                  className="h-4 w-4 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  title="Remover cartela"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {ticket.numbers.length > 0 ? (
+                            <div className="flex flex-wrap gap-0.5">
+                              {ticket.numbers.sort((a, b) => a - b).map(num => (
+                                <span key={num} className="font-mono text-[10px] bg-primary/10 text-primary rounded px-1">
+                                  {String(num).padStart(2, '0')}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setActiveTicketId(ticket.id)}
+                              className="text-primary text-[10px] font-medium hover:underline flex items-center gap-1"
+                            >
+                              <Hash className="h-2.5 w-2.5" />
+                              Escolher números
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Price breakdown */}
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
+                      <span className={discountPercent > 0 ? "line-through text-muted-foreground text-xs" : "font-medium"}>
+                        R$ {totalPrice.toFixed(2)}
+                      </span>
+                    </div>
+                    {discountPercent > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-medium">
+                        <span>Desconto ({discountPercent}%)</span>
+                        <span>- R$ {discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                      <span>Total</span>
+                      <span>R$ {finalPrice.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* CTA Button */}
+                  {countdown.isOpen ? (
+                    <Button
+                      size="lg"
+                      className={cn(
+                        'w-full h-12 text-base',
+                        allTicketsComplete && 'animate-pulse'
+                      )}
+                      disabled={!allTicketsComplete}
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          openAuth('login');
+                        } else {
+                          setPurchaseDialogOpen(true);
+                        }
+                      }}
+                    >
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      {allTicketsComplete
+                        ? `Comprar - R$ ${finalPrice.toFixed(2)}`
+                        : `${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length} completas`
+                      }
+                    </Button>
+                  ) : (
+                    <Button size="lg" className="w-full h-12" disabled variant="secondary">
+                      <Lock className="mr-2 h-5 w-5" />
+                      Aguardando Abertura
+                    </Button>
+                  )}
+
+                  {/* Payment methods trust signal */}
+                  <div className="flex items-center justify-center gap-3 pt-2 text-muted-foreground/50">
+                    <CreditCard className="h-4 w-4" />
+                    <span className="text-[10px] uppercase tracking-wider">Pagamento seguro</span>
+                  </div>
                 </CardContent>
               </Card>
-            )}
+            </div>
           </div>
         </div>
       </main>
+
+      {/* Mobile Sticky Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-background/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.08)]" style={{ borderTop: `2px solid ${company.primary_color}` }}>
+        <div className="container mx-auto px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div>
+              <p className="font-medium">{tickets.length}x cartela</p>
+              <p className="text-xs text-muted-foreground">
+                {tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/{tickets.length} completas
+              </p>
+            </div>
+            <div className="text-right">
+              {discountPercent > 0 && (
+                <p className="text-xs text-muted-foreground line-through">R$ {totalPrice.toFixed(2)}</p>
+              )}
+              <p className="font-bold text-lg">R$ {finalPrice.toFixed(2)}</p>
+              {discountPercent > 0 && (
+                <Badge className="bg-green-600 text-white text-[10px] h-4 px-1.5">-{discountPercent}%</Badge>
+              )}
+            </div>
+          </div>
+          {countdown.isOpen ? (
+            <Button
+              size="lg"
+              className="w-full h-12"
+              disabled={!allTicketsComplete}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  openAuth('login');
+                } else {
+                  setPurchaseDialogOpen(true);
+                }
+              }}
+            >
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              {allTicketsComplete
+                ? `Comprar - R$ ${finalPrice.toFixed(2)}`
+                : `${tickets.filter(t => t.numbers.length === raffle.numbers_per_ticket).length}/${tickets.length} completas`
+              }
+            </Button>
+          ) : (
+            <Button size="lg" className="w-full h-12" disabled variant="secondary">
+              <Lock className="mr-2 h-4 w-4" />
+              Aguardando Abertura
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Purchase Dialog */}
       <Dialog open={purchaseDialogOpen} onOpenChange={setPurchaseDialogOpen}>
@@ -774,11 +1152,17 @@ export default function SorteioPage() {
             <div className="bg-muted rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>{tickets.length} cartela(s) × R$ {ticketPrice.toFixed(2)}</span>
-                <span>R$ {totalPrice.toFixed(2)}</span>
+                <span className={discountPercent > 0 ? "line-through text-muted-foreground" : ""}>R$ {totalPrice.toFixed(2)}</span>
               </div>
+              {discountPercent > 0 && (
+                <div className="flex justify-between text-sm text-green-600 font-medium">
+                  <span>Desconto ({discountPercent}%)</span>
+                  <span>- R$ {discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total</span>
-                <span>R$ {totalPrice.toFixed(2)}</span>
+                <span>R$ {finalPrice.toFixed(2)}</span>
               </div>
             </div>
 
@@ -801,7 +1185,7 @@ export default function SorteioPage() {
               ) : (
                 <>
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  Pagar R$ {totalPrice.toFixed(2)}
+                  Pagar R$ {finalPrice.toFixed(2)}
                 </>
               )}
             </Button>
@@ -875,6 +1259,8 @@ export default function SorteioPage() {
         onModeChange={setAuthMode}
         companyId={company.id}
       />
+
+      <PublicFooter />
     </div>
   );
 }

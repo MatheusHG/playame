@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -13,34 +13,8 @@ export default function SuperAdminAuditoria() {
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['audit-logs'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-
-      // Fetch company names
-      const companyIds = [...new Set(data.filter(l => l.company_id).map(l => l.company_id))];
-      let companiesMap: Record<string, string> = {};
-
-      if (companyIds.length > 0) {
-        const { data: companies } = await supabase
-          .from('companies')
-          .select('id, name')
-          .in('id', companyIds as string[]);
-
-        companiesMap = (companies || []).reduce((acc, c) => {
-          acc[c.id] = c.name;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      return data.map(log => ({
-        ...log,
-        company_name: log.company_id ? companiesMap[log.company_id] : undefined,
-      })) as AuditLogWithCompany[];
+      const data = await api.get<AuditLogWithCompany[]>('/audit-logs');
+      return data;
     },
   });
 

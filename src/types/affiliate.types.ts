@@ -43,7 +43,9 @@ export interface AffiliateCommission {
   manager_percent: number | null;
   manager_gross_amount: number | null;
   cambista_id: string | null;
+  /** @deprecated Use cambista_percent instead */
   cambista_percent_of_manager: number | null;
+  cambista_percent: number | null;
   cambista_amount: number | null;
   manager_net_amount: number | null;
   rates_snapshot: RatesSnapshot;
@@ -53,6 +55,8 @@ export interface AffiliateCommission {
 export interface RatesSnapshot {
   super_admin_percent: number;
   manager_percent?: number;
+  cambista_percent?: number;
+  /** @deprecated Use cambista_percent instead */
   cambista_percent_of_manager?: number;
   manager_name?: string;
   cambista_name?: string;
@@ -80,6 +84,7 @@ export interface PlatformSettings {
 }
 
 // Cálculo de comissões
+// TODAS as porcentagens são calculadas sobre o valor da cartela (saleAmount)
 export interface CommissionCalculation {
   saleAmount: number;
   superAdminPercent: number;
@@ -89,7 +94,7 @@ export interface CommissionCalculation {
   managerPercent?: number;
   managerGrossAmount?: number;
   cambistaId?: string;
-  cambistaPercentOfManager?: number;
+  cambistaPercent?: number;
   cambistaAmount?: number;
   managerNetAmount?: number;
 }
@@ -98,28 +103,31 @@ export function calculateCommissions(
   saleAmount: number,
   superAdminPercent: number,
   managerPercent?: number,
-  cambistaPercentOfManager?: number
+  cambistaPercent?: number
 ): CommissionCalculation {
-  // 1. Taxa administrativa do sistema (Super-Admin)
-  const superAdminAmount = Math.round(saleAmount * (superAdminPercent / 100) * 100) / 100;
-  // 2. Valor líquido da empresa (após taxa admin)
-  const companyAfterAdmin = Math.round((saleAmount - superAdminAmount) * 100) / 100;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  // 1. Taxa administrativa do sistema (Super-Admin) - % da cartela
+  const superAdminAmount = round2(saleAmount * (superAdminPercent / 100));
+
+  // Começa com valor após taxa admin
+  let companyNetAmount = round2(saleAmount - superAdminAmount);
 
   let managerGrossAmount: number | undefined;
   let cambistaAmount: number | undefined;
   let managerNetAmount: number | undefined;
-  let companyNetAmount = companyAfterAdmin;
 
-  // 3. Gerente: percentual sobre o valor líquido da empresa (após taxa admin)
+  // 2. Gerente: percentual sobre o VALOR DA CARTELA
   if (managerPercent !== undefined && managerPercent > 0) {
-    managerGrossAmount = Math.round(companyAfterAdmin * (managerPercent / 100) * 100) / 100;
-    companyNetAmount = Math.round((companyAfterAdmin - managerGrossAmount) * 100) / 100;
+    managerGrossAmount = round2(saleAmount * (managerPercent / 100));
+    companyNetAmount = round2(companyNetAmount - managerGrossAmount);
     managerNetAmount = managerGrossAmount;
 
-    // 4. Cambista: percentual sobre o valor do gerente
-    if (cambistaPercentOfManager !== undefined && cambistaPercentOfManager > 0) {
-      cambistaAmount = Math.round(managerGrossAmount * (cambistaPercentOfManager / 100) * 100) / 100;
-      managerNetAmount = Math.round((managerGrossAmount - cambistaAmount) * 100) / 100;
+    // 3. Cambista: percentual sobre o VALOR DA CARTELA
+    if (cambistaPercent !== undefined && cambistaPercent > 0) {
+      cambistaAmount = round2(saleAmount * (cambistaPercent / 100));
+      managerNetAmount = round2(managerGrossAmount - cambistaAmount);
+      companyNetAmount = round2(companyNetAmount - cambistaAmount);
     }
   }
 
@@ -130,7 +138,7 @@ export function calculateCommissions(
     companyNetAmount,
     managerPercent,
     managerGrossAmount,
-    cambistaPercentOfManager,
+    cambistaPercent,
     cambistaAmount,
     managerNetAmount,
   };

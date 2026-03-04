@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -92,14 +92,9 @@ export function AffiliateForm({
   const { data: profiles = [] } = useQuery({
     queryKey: ['permission-profiles', companyId, isCambista ? 'cambista' : 'manager'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('permission_profiles')
-        .select('id, name, is_default')
-        .eq('company_id', companyId)
-        .eq('affiliate_type', isCambista ? 'cambista' : 'manager')
-        .order('name');
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/permission-profiles/${companyId}`, {
+        affiliate_type: isCambista ? 'cambista' : 'manager',
+      });
       return data;
     },
     enabled: !!companyId && open,
@@ -160,7 +155,7 @@ export function AffiliateForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="commission_percent">Comissão (%)</Label>
+                <Label htmlFor="commission_percent">Comissão (%) - sobre o valor da cartela</Label>
                 <Input
                   id="commission_percent"
                   type="number"

@@ -11,13 +11,13 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredRole, 
+export function ProtectedRoute({
+  children,
+  requiredRole,
   companyId,
-  redirectTo = '/auth' 
+  redirectTo = '/auth'
 }: ProtectedRouteProps) {
-  const { user, loading, isSuperAdmin, isAdminEmpresa, isColaborador } = useAuth();
+  const { user, loading, isSuperAdmin, isAdminEmpresa, isColaborador, affiliateInfo } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,6 +26,11 @@ export function ProtectedRoute({
 
   if (!user) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  // Affiliate users must NOT access empresa/admin routes — redirect to affiliate portal
+  if (affiliateInfo && requiredRole && requiredRole !== 'SUPER_ADMIN') {
+    return <Navigate to={`/afiliado/${affiliateInfo.companySlug}/dashboard`} replace />;
   }
 
   if (requiredRole) {

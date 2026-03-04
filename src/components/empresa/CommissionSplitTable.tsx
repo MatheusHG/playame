@@ -77,7 +77,7 @@ export function CommissionSplitTable({ companyId }: CommissionSplitTableProps) {
           <div className="text-sm">
             <div className="font-medium">{(item as any).cambista?.name}</div>
             <div className="text-muted-foreground">
-              {formatCurrency(Number(item.cambista_amount))} ({item.cambista_percent_of_manager}%)
+              {formatCurrency(Number(item.cambista_amount))} ({item.cambista_percent_of_manager ?? (item as any).cambista_percent}%)
             </div>
           </div>
         );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { useTenant } from '@/contexts/TenantContext';
 import { Badge } from '@/components/ui/badge';
@@ -30,13 +30,7 @@ export default function EmpresaWebhookLogs() {
     queryKey: ['webhook-logs', company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      const { data, error } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
+      const data = await api.get<any[]>(`/webhook-logs/company/${company.id}`);
       return data;
     },
     enabled: !!company?.id,
@@ -107,7 +101,7 @@ export default function EmpresaWebhookLogs() {
       </Card>
 
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Webhook</DialogTitle>
           </DialogHeader>

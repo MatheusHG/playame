@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { KeyRound, Mail, Loader2 } from 'lucide-react';
 
 interface ResetPasswordDialogProps {
@@ -52,11 +52,10 @@ export function ResetPasswordDialog({
     try {
       const redirectUrl = `${window.location.origin}/afiliado/${companySlug}/redefinir-senha`;
 
-      const { error } = await supabase.auth.resetPasswordForEmail(effectiveEmail, {
+      await api.post('/auth/reset-password', {
+        email: effectiveEmail,
         redirectTo: redirectUrl,
       });
-
-      if (error) throw error;
 
       toast({
         title: 'E-mail enviado',

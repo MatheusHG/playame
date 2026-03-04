@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -34,19 +34,7 @@ export function ImageUpload({
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${companyId}/${folder}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-assets')
-        .getPublicUrl(fileName);
-
+      const publicUrl = await api.upload(file, companyId, folder);
       onChange(publicUrl);
       toast({ title: 'Imagem enviada!' });
     } catch (error: any) {

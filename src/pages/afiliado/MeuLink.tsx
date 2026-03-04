@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,13 +30,8 @@ export default function MeuLink() {
   const { data: linkStats } = useQuery({
     queryKey: ['affiliate-link-stats', affiliate?.id],
     queryFn: async () => {
-      const { count, error } = await (supabase as any)
-        .from('tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('affiliate_id', affiliate?.id);
-
-      if (error) throw error;
-      return { totalSales: count || 0 };
+      const data = await api.get<{ totalSales: number }>(`/affiliates/${affiliate?.id}/link-stats`);
+      return data;
     },
     enabled: !!affiliate?.id,
   });

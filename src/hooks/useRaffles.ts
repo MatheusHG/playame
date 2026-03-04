@@ -1,15 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
-
-type Raffle = Database['public']['Tables']['raffles']['Row'];
-type RaffleInsert = Database['public']['Tables']['raffles']['Insert'];
-type RaffleUpdate = Database['public']['Tables']['raffles']['Update'];
-type PrizeTier = Database['public']['Tables']['prize_tiers']['Row'];
-type PrizeTierInsert = Database['public']['Tables']['prize_tiers']['Insert'];
-type DrawBatch = Database['public']['Tables']['draw_batches']['Row'];
-type DrawNumber = Database['public']['Tables']['draw_numbers']['Row'];
+import type { Raffle, PrizeTier, DrawBatch, DrawNumber, RaffleStatus } from '@/types/database.types';
 
 export interface RaffleWithTiers extends Raffle {
   prize_tiers: PrizeTier[];
@@ -24,15 +16,7 @@ export function useRaffles(companyId: string | undefined) {
     queryKey: ['raffles', companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('raffles')
-        .select('*, prize_tiers(*)')
-        .eq('company_id', companyId!)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as RaffleWithTiers[];
+      return api.get<RaffleWithTiers[]>(`/raffles/company/${companyId}`);
     },
   });
 }
@@ -42,14 +26,18 @@ export function useRaffle(raffleId: string | undefined) {
     queryKey: ['raffle', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('raffles')
-        .select('*, prize_tiers(*)')
-        .eq('id', raffleId!)
-        .single();
+      return api.get<RaffleWithTiers>(`/raffles/${raffleId}`);
+    },
+  });
+}
 
-      if (error) throw error;
-      return data as RaffleWithTiers;
+export function useDrawnNumbers(raffleId: string | undefined) {
+  return useQuery({
+    queryKey: ['drawn-numbers', raffleId],
+    enabled: !!raffleId,
+    queryFn: async () => {
+      const result = await api.get<{ numbers: number[] }>(`/draws/raffle/${raffleId}/drawn-numbers`);
+      return new Set(result.numbers);
     },
   });
 }
@@ -59,14 +47,7 @@ export function useDrawBatches(raffleId: string | undefined) {
     queryKey: ['draw-batches', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('draw_batches')
-        .select('*, draw_numbers(*)')
-        .eq('raffle_id', raffleId!)
-        .order('draw_order', { ascending: true });
-
-      if (error) throw error;
-      return data as DrawBatchWithNumbers[];
+      return api.get<DrawBatchWithNumbers[]>(`/draws/raffle/${raffleId}`);
     },
   });
 }
@@ -76,15 +57,8 @@ export function useRaffleMutations(companyId: string | undefined) {
   const { toast } = useToast();
 
   const createRaffle = useMutation({
-    mutationFn: async (data: Omit<RaffleInsert, 'company_id'>) => {
-      const { data: raffle, error } = await supabase
-        .from('raffles')
-        .insert({ ...data, company_id: companyId! })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return raffle;
+    mutationFn: async (data: Partial<Raffle>) => {
+      return api.post<Raffle>(`/raffles/company/${companyId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raffles', companyId] });
@@ -96,17 +70,8 @@ export function useRaffleMutations(companyId: string | undefined) {
   });
 
   const updateRaffle = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: RaffleUpdate }) => {
-      // Increment rules_version on significant changes
-      const { data: raffle, error } = await supabase
-        .from('raffles')
-        .update({ ...data, rules_version: data.rules_version })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return raffle;
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Raffle> }) => {
+      return api.patch<Raffle>(`/raffles/${id}`, data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['raffles', companyId] });
@@ -120,12 +85,7 @@ export function useRaffleMutations(companyId: string | undefined) {
 
   const deleteRaffle = useMutation({
     mutationFn: async (raffleId: string) => {
-      const { error } = await supabase
-        .from('raffles')
-        .update({ deleted_at: new Date().toISOString(), status: 'finished' })
-        .eq('id', raffleId);
-
-      if (error) throw error;
+      return api.delete(`/raffles/${raffleId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raffles', companyId] });
@@ -137,18 +97,8 @@ export function useRaffleMutations(companyId: string | undefined) {
   });
 
   const changeStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: Database['public']['Enums']['raffle_status'] }) => {
-      const updateData: RaffleUpdate = { status };
-      if (status === 'finished') {
-        updateData.finished_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('raffles')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
+    mutationFn: async ({ id, status }: { id: string; status: RaffleStatus }) => {
+      return api.patch(`/raffles/${id}/status`, { status });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['raffles', companyId] });
@@ -168,31 +118,8 @@ export function usePrizeTierMutations(raffleId: string | undefined) {
   const { toast } = useToast();
 
   const savePrizeTiers = useMutation({
-    mutationFn: async (tiers: Omit<PrizeTierInsert, 'raffle_id'>[]) => {
-      // Get current rules_version
-      const { data: currentRaffle } = await supabase
-        .from('raffles')
-        .select('rules_version')
-        .eq('id', raffleId!)
-        .single();
-
-      // Delete existing tiers
-      await supabase.from('prize_tiers').delete().eq('raffle_id', raffleId!);
-
-      // Insert new tiers
-      if (tiers.length > 0) {
-        const { error } = await supabase
-          .from('prize_tiers')
-          .insert(tiers.map(t => ({ ...t, raffle_id: raffleId! })));
-
-        if (error) throw error;
-      }
-
-      // Increment rules version
-      await supabase
-        .from('raffles')
-        .update({ rules_version: (currentRaffle?.rules_version || 1) + 1 })
-        .eq('id', raffleId!);
+    mutationFn: async (tiers: Omit<PrizeTier, 'id' | 'raffle_id' | 'created_at' | 'updated_at'>[]) => {
+      return api.put(`/raffles/${raffleId}/prize-tiers`, { tiers });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raffle', raffleId] });
@@ -212,28 +139,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const createBatch = useMutation({
     mutationFn: async (data: { name?: string }) => {
-      // Get next draw_order
-      const { data: batches } = await supabase
-        .from('draw_batches')
-        .select('draw_order')
-        .eq('raffle_id', raffleId!)
-        .order('draw_order', { ascending: false })
-        .limit(1);
-
-      const nextOrder = (batches?.[0]?.draw_order || 0) + 1;
-
-      const { data: batch, error } = await supabase
-        .from('draw_batches')
-        .insert({
-          raffle_id: raffleId!,
-          name: data.name || `Rodada ${nextOrder}`,
-          draw_order: nextOrder,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return batch;
+      return api.post<DrawBatch>(`/draws/raffle/${raffleId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
@@ -246,15 +152,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const addNumber = useMutation({
     mutationFn: async ({ batchId, number }: { batchId: string; number: number }) => {
-      const { error } = await supabase
-        .from('draw_numbers')
-        .insert({
-          draw_batch_id: batchId,
-          raffle_id: raffleId!,
-          number,
-        });
-
-      if (error) throw error;
+      return api.post(`/draws/${batchId}/numbers`, { raffleId, number });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
@@ -267,12 +165,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const removeNumber = useMutation({
     mutationFn: async (numberId: string) => {
-      const { error } = await supabase
-        .from('draw_numbers')
-        .delete()
-        .eq('id', numberId);
-
-      if (error) throw error;
+      return api.delete(`/draws/numbers/${numberId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
@@ -285,12 +178,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const finalizeBatch = useMutation({
     mutationFn: async (batchId: string) => {
-      const { error } = await supabase
-        .from('draw_batches')
-        .update({ finalized_at: new Date().toISOString() })
-        .eq('id', batchId);
-
-      if (error) throw error;
+      return api.patch(`/draws/${batchId}/finalize`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
@@ -303,15 +191,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const deleteBatch = useMutation({
     mutationFn: async (batchId: string) => {
-      // Delete numbers first
-      await supabase.from('draw_numbers').delete().eq('draw_batch_id', batchId);
-      
-      const { error } = await supabase
-        .from('draw_batches')
-        .delete()
-        .eq('id', batchId);
-
-      if (error) throw error;
+      return api.delete(`/draws/${batchId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });
@@ -324,12 +204,7 @@ export function useDrawBatchMutations(raffleId: string | undefined) {
 
   const updateBatch = useMutation({
     mutationFn: async ({ batchId, name }: { batchId: string; name: string }) => {
-      const { error } = await supabase
-        .from('draw_batches')
-        .update({ name })
-        .eq('id', batchId);
-
-      if (error) throw error;
+      return api.patch(`/draws/${batchId}`, { name });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draw-batches', raffleId] });

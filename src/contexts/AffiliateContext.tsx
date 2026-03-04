@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
 
 interface AffiliateData {
   id: string;
@@ -26,8 +30,8 @@ interface AffiliateData {
 }
 
 interface AffiliateContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: { token: string | null } | null;
   affiliate: AffiliateData | null;
   loading: boolean;
   error: string | null;
@@ -40,39 +44,27 @@ interface AffiliateContextType {
 const AffiliateContext = createContext<AffiliateContextType | undefined>(undefined);
 
 export function AffiliateProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [affiliate, setAffiliate] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAffiliateData = useCallback(async (userId: string) => {
+  const fetchAffiliateData = useCallback(async () => {
     try {
-      // Fetch affiliate linked to this user (use maybeSingle to avoid error when no rows found)
-      const { data: affiliateData, error: affError } = await (supabase as any)
-        .from('affiliates')
-        .select(`
-          *,
-          company:companies(id, name, slug, logo_url, primary_color, secondary_color),
-          permission_profile:permission_profiles(permissions)
-        `)
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .is('deleted_at', null)
-        .maybeSingle();
+      // /auth/me returns { id, email, roles, affiliate? } (user fields at top level)
+      const data = await api.get<any>('/auth/me');
 
-      if (affError) {
-        console.error('Error fetching affiliate data:', affError);
-        setError('Erro ao carregar dados do afiliado');
-        setAffiliate(null);
-      } else if (affiliateData) {
-        setAffiliate({
-          ...affiliateData,
-          permissions: affiliateData.permission_profile?.permissions || {},
-        });
+      setUser({ id: data.id, email: data.email });
+
+      if (data.affiliate) {
+        // Ensure permissions are available at the affiliate level
+        // Backend now returns them, but also handle legacy responses
+        const permissions = data.affiliate.permissions
+          ?? (data.affiliate.permission_profile?.permissions as Record<string, boolean>)
+          ?? {};
+        setAffiliate({ ...data.affiliate, permissions });
         setError(null);
       } else {
-        // Not an affiliate - this is fine, just set null
         setAffiliate(null);
         setError(null);
       }
@@ -80,42 +72,19 @@ export function AffiliateProvider({ children }: { children: React.ReactNode }) {
       console.error('Error fetching affiliate data:', err);
       setError('Erro ao carregar dados do afiliado');
       setAffiliate(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          setTimeout(() => {
-            fetchAffiliateData(session.user.id);
-          }, 0);
-        } else {
-          setAffiliate(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // Check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchAffiliateData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      fetchAffiliateData();
+    } else {
+      setLoading(false);
+    }
   }, [fetchAffiliateData]);
 
   const hasPermission = useCallback((permission: string): boolean => {
@@ -126,32 +95,50 @@ export function AffiliateProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    try {
+      const data = await api.post<{
+        token: string;
+        user: AuthUser;
+        roles: any[];
+      }>('/auth/login', { email, password });
+
+      localStorage.setItem('auth_token', data.token);
+      setUser(data.user);
+
+      // Fetch affiliate data after login
+      await fetchAffiliateData();
+      return { error: null };
+    } catch (err) {
       setLoading(false);
-      return { error: new Error(error.message) };
+      return { error: err instanceof Error ? err : new Error('Login failed') };
     }
-    return { error: null };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore errors on logout
+    }
+    localStorage.removeItem('auth_token');
     setUser(null);
-    setSession(null);
     setAffiliate(null);
   };
 
   const refetch = useCallback(() => {
-    if (user) {
+    // Allow refetch when there's a token (even if user isn't set yet)
+    // This handles the case where login happens via AuthContext's signIn
+    const token = localStorage.getItem('auth_token');
+    if (user || token) {
       setLoading(true);
-      fetchAffiliateData(user.id);
+      fetchAffiliateData();
     }
   }, [user, fetchAffiliateData]);
 
   return (
     <AffiliateContext.Provider value={{
       user,
-      session,
+      session: user ? { token: localStorage.getItem('auth_token') } : null,
       affiliate,
       loading,
       error,

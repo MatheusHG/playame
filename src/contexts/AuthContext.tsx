@@ -1,97 +1,124 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { AuthContextType, UserRole, AppRole } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { AuthContextType, UserRole, AffiliateInfo } from '@/types/database.types';
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
+  const [affiliateInfo, setAffiliateInfo] = useState<AffiliateInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer role fetching with setTimeout to avoid deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRoles(session.user.id);
-          }, 0);
-        } else {
-          setRoles([]);
-          setLoading(false);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRoles(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Check for existing token
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      restoreSession();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchUserRoles = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId);
+  // Maps backend role objects ({ role, companyId }) to frontend UserRole format ({ role, company_id })
+  const mapRoles = (rawRoles: any[]): UserRole[] => {
+    if (!rawRoles || !Array.isArray(rawRoles)) return [];
+    return rawRoles.map((r: any) => ({
+      id: r.id || '',
+      user_id: r.user_id || '',
+      role: r.role,
+      company_id: r.companyId ?? r.company_id ?? null,
+      created_at: r.created_at || '',
+    }));
+  };
 
-      if (error) {
-        console.error('Error fetching user roles:', error);
-        setRoles([]);
-      } else {
-        setRoles((data as UserRole[]) || []);
-      }
-    } catch (err) {
-      console.error('Error fetching user roles:', err);
+  const extractAffiliateInfo = (data: any): AffiliateInfo | null => {
+    if (data.affiliate && data.affiliate.company?.slug) {
+      return {
+        id: data.affiliate.id,
+        companySlug: data.affiliate.company.slug,
+        type: data.affiliate.type,
+      };
+    }
+    return null;
+  };
+
+  const restoreSession = async () => {
+    try {
+      // GET /auth/me returns { id, email, roles: [{role, companyId, company}], affiliate }
+      const data = await api.get<any>('/auth/me');
+
+      setUser({ id: data.id, email: data.email });
+      setRoles(mapRoles(data.roles));
+      setAffiliateInfo(extractAffiliateInfo(data));
+    } catch {
+      localStorage.removeItem('auth_token');
+      setUser(null);
       setRoles([]);
+      setAffiliateInfo(null);
     } finally {
       setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error ? new Error(error.message) : null };
+    try {
+      // POST /auth/login returns { token, user: { userId, email, roles: [{role, companyId}] } }
+      const loginData = await api.post<any>('/auth/login', { email, password });
+      localStorage.setItem('auth_token', loginData.token);
+
+      // Fetch full profile to get affiliate info BEFORE setting state
+      // so all state updates are batched in one render
+      let affInfo: AffiliateInfo | null = null;
+      try {
+        const me = await api.get<any>('/auth/me');
+        affInfo = extractAffiliateInfo(me);
+      } catch {
+        // Continue without affiliate info
+      }
+
+      // Set all state synchronously so React batches into single render
+      const u = loginData.user;
+      setUser({ id: u.userId || u.id, email: u.email });
+      setRoles(mapRoles(u.roles || loginData.roles));
+      setAffiliateInfo(affInfo);
+
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Login failed') };
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-      },
-    });
-    return { error: error ? new Error(error.message) : null };
+    try {
+      // POST /auth/register returns { token, user: { userId, email, roles } }
+      const data = await api.post<any>('/auth/register', { email, password });
+
+      localStorage.setItem('auth_token', data.token);
+      const u = data.user;
+      setUser({ id: u.userId || u.id, email: u.email });
+      setRoles(mapRoles(u.roles || data.roles));
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Registration failed') };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore errors on logout
+    }
+    localStorage.removeItem('auth_token');
     setUser(null);
-    setSession(null);
     setRoles([]);
+    setAffiliateInfo(null);
   };
 
   const isSuperAdmin = roles.some(r => r.role === 'SUPER_ADMIN');
@@ -110,8 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     user,
-    session,
+    session: user ? { token: localStorage.getItem('auth_token') } : null,
     roles,
+    affiliateInfo,
     loading,
     signIn,
     signUp,

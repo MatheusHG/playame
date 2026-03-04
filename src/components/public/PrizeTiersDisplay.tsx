@@ -1,14 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy, Crown, Medal, Star, Gift, CheckCircle, TrendingUp, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { Database } from '@/integrations/supabase/types';
-
-type PrizeTier = Database['public']['Tables']['prize_tiers']['Row'];
-type PrizeMode = Database['public']['Enums']['prize_mode'];
+import type { PrizeTier, PrizeMode } from '@/types/database.types';
 
 interface WinnerInfo {
   tier_id: string;
@@ -85,45 +82,8 @@ export function PrizeTiersDisplay({
   const { data: winners = [], isLoading: loadingWinners } = useQuery({
     queryKey: ['raffle-winners', raffleId],
     queryFn: async () => {
-      // Get tickets that are winners
-      const { data: winnerTickets, error } = await supabase
-        .from('tickets')
-        .select(`
-          id,
-          purchased_at,
-          eligible_prize_tiers,
-          player:players!inner(name, city, cpf_last4),
-          ranking:ticket_ranking!inner(hits)
-        `)
-        .eq('raffle_id', raffleId)
-        .eq('status', 'winner');
-
-      if (error) throw error;
-
-      // Map winners to their tiers
-      const winnersMap: WinnerInfo[] = [];
-      
-      if (winnerTickets) {
-        for (const ticket of winnerTickets) {
-          const player = ticket.player as unknown as { name: string; city: string | null; cpf_last4: string };
-          const ranking = ticket.ranking as unknown as { hits: number };
-          
-          if (ticket.eligible_prize_tiers) {
-            for (const tierId of ticket.eligible_prize_tiers) {
-              winnersMap.push({
-                tier_id: tierId,
-                hits: ranking?.hits || 0,
-                player_name_masked: maskName(player?.name || ''),
-                player_city: player?.city,
-                player_cpf_last4: player?.cpf_last4 || '',
-                won_at: ticket.purchased_at || '',
-              });
-            }
-          }
-        }
-      }
-
-      return winnersMap;
+      const data = await api.get<WinnerInfo[]>(`/raffles/${raffleId}/winners`);
+      return data || [];
     },
   });
 

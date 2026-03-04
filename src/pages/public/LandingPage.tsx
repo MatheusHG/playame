@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -9,14 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Clock, Wallet, Users, Star, LogIn, UserPlus, LogOut } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Trophy, LogIn, UserPlus, Sparkles, ArrowRight, Gift, TrendingUp } from 'lucide-react';
 import { PlayerAuthModal } from '@/components/public/PlayerAuthModal';
 import { RafflePublicCard } from '@/components/public/RafflePublicCard';
 import { PublicRanking } from '@/components/public/PublicRanking';
 import { BannerCarousel } from '@/components/public/BannerCarousel';
 import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
+import { PublicFooter } from '@/components/public/PublicFooter';
+import { PublicNavMenu } from '@/components/public/PublicNavMenu';
 
 type PaymentNetAmountRow = {
   raffle_id: string;
@@ -53,14 +53,7 @@ export default function LandingPage() {
     queryKey: ['public-banners', company?.id],
     enabled: !!company?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('company_banners')
-        .select('*')
-        .eq('company_id', company!.id)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/banners/company/${company!.id}`, { active: 'true' });
       return data;
     },
   });
@@ -70,15 +63,7 @@ export default function LandingPage() {
     queryKey: ['public-raffles', company?.id],
     enabled: !!company?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('raffles')
-        .select('*, prize_tiers(*)')
-        .eq('company_id', company!.id)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/raffles/public/${company!.id}`);
       return data;
     },
   });
@@ -91,34 +76,24 @@ export default function LandingPage() {
     queryKey: ['public-net-sales-by-raffle', company?.id, activeRaffleIdsKey],
     enabled: !!company?.id && activeRaffleIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('raffle_id, net_amount')
-        .eq('company_id', company!.id)
-        .eq('status', 'succeeded')
-        .in('raffle_id', activeRaffleIds);
-
-      if (error) throw error;
-
-      const totals: Record<string, number> = {};
-      for (const p of (data || []) as PaymentNetAmountRow[]) {
-        const raffleId = p.raffle_id;
-        totals[raffleId] = (totals[raffleId] || 0) + Number(p.net_amount || 0);
-      }
-      return totals;
+      const data = await api.get<Record<string, number>>(
+        `/payments/net-sales-by-raffle/${company!.id}`,
+        { raffleIds: activeRaffleIds.join(',') }
+      );
+      return data;
     },
   });
 
-  // Soma total de prêmios (todos os sorteios), usando vendas líquidas (net_amount)
+  // Soma total de prêmios (todos os sorteios)
+  // netSalesByRaffle already returns SUM(prize_pool_contribution) per raffle
   const totalPrize = (raffles || []).reduce((sum, r) => {
-    const netSales = Number(netSalesByRaffle[r.id] || 0);
+    const prizePoolContrib = Number(netSalesByRaffle[r.id] || 0);
     const fixed = Number(r.fixed_prize_value || 0);
-    const percent = Number(r.prize_percent_of_sales || 0) / 100;
 
     if (r.prize_mode === 'FIXED') return sum + fixed;
-    if (r.prize_mode === 'PERCENT_ONLY') return sum + netSales * percent;
+    if (r.prize_mode === 'PERCENT_ONLY') return sum + prizePoolContrib;
     // FIXED_PLUS_PERCENT
-    return sum + fixed + netSales * percent;
+    return sum + fixed + prizePoolContrib;
   }, 0);
 
   const openAuth = (mode: 'login' | 'register') => {
@@ -176,18 +151,20 @@ export default function LandingPage() {
             ) : (
               <>
                 <Button variant="outline" size="sm" className="bg-transparent text-white border-white hover:bg-white/10 hover:text-white" onClick={() => openAuth('login')}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Entrar
+                  <LogIn className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Entrar</span>
                 </Button>
                 <Button variant="outline" size="sm" className="bg-white text-black border-white hover:bg-white/90 hover:text-black" onClick={() => openAuth('register')}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Cadastrar
+                  <UserPlus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Cadastrar</span>
                 </Button>
               </>
             )}
           </div>
         </div>
       </header>
+
+      <PublicNavMenu primaryColor={company.primary_color} companyId={company.id} />
 
       {/* Banner Carousel */}
       {banners.length > 0 && (
@@ -196,40 +173,123 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section
-        className="py-16 text-white"
+        className="relative overflow-hidden text-white"
         style={{
-          background: `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})`,
+          background: `linear-gradient(160deg, ${company.primary_color} 0%, ${company.secondary_color} 50%, ${company.primary_color}ee 100%)`,
         }}
       >
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Bolão de Números
-          </h1>
-          <p className="text-xl md:text-2xl text-white/80 mb-8">
-            Escolha seus números e concorra a prêmios incríveis!
-          </p>
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-10"
+            style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
+          />
+          <div
+            className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-[0.07]"
+            style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
+          />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.04]"
+            style={{ border: '1px solid white' }}
+          />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-[0.06]"
+            style={{ border: '1px solid white' }}
+          />
+        </div>
 
-          <div className="flex flex-wrap justify-center gap-6 mb-8">
-            <div className="bg-white/20 rounded-xl px-6 py-4">
-              <Wallet className="h-8 w-8 mx-auto mb-2" />
-              <p className="text-3xl font-bold">
-                {totalPrize > 0 ? `R$ ${totalPrize.toLocaleString('pt-BR')}` : 'A definir'}
-              </p>
-              <p className="text-sm text-white/80">em prêmios</p>
-            </div>
-            <div className="bg-white/20 rounded-xl px-6 py-4">
-              <Trophy className="h-8 w-8 mx-auto mb-2" />
-              <p className="text-3xl font-bold">{raffles?.length || 0}</p>
-              <p className="text-sm text-white/80">sorteios ativos</p>
+        <div className="relative container mx-auto px-4 py-16 md:py-20">
+          {/* Top badge */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm">
+              <Sparkles className="h-4 w-4 text-yellow-300" />
+              <span className="text-white/90">Plataforma oficial de sorteios</span>
             </div>
           </div>
 
-          {!isAuthenticated && (
-            <Button size="lg" variant="secondary" onClick={() => openAuth('register')}>
-              <Star className="mr-2 h-5 w-5" />
-              Começar a Jogar
-            </Button>
-          )}
+          {/* Title */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-center mb-4 tracking-tight">
+            Escolha seus números,
+            <br />
+            <span className="text-transparent bg-clip-text" style={{
+              backgroundImage: 'linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.7) 100%)',
+            }}>
+              concorra a prêmios
+            </span>
+          </h1>
+
+          <p className="text-center text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10">
+            Participe dos sorteios de <strong className="text-white/90">{company.name}</strong> com total
+            segurança e transparência. Acompanhe tudo em tempo real.
+          </p>
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 max-w-2xl mx-auto mb-10">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-4 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-yellow-400/20 mb-2">
+                <Trophy className="h-5 w-5 text-yellow-300" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold tracking-tight">
+                {totalPrize > 0
+                  ? `R$ ${totalPrize.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                  : 'A definir'}
+              </p>
+              <p className="text-xs text-white/60 mt-0.5">em prêmios</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-4 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/15 mb-2">
+                <Gift className="h-5 w-5 text-white/80" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold tracking-tight">
+                {raffles?.length || 0}
+              </p>
+              <p className="text-xs text-white/60 mt-0.5">{(raffles?.length || 0) === 1 ? 'sorteio ativo' : 'sorteios ativos'}</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-4 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-green-400/20 mb-2">
+                <TrendingUp className="h-5 w-5 text-green-300" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold tracking-tight">
+                Ao vivo
+              </p>
+              <p className="text-xs text-white/60 mt-0.5">ranking em tempo real</p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {!isAuthenticated ? (
+              <>
+                <Button
+                  size="lg"
+                  onClick={() => openAuth('register')}
+                  className="bg-white text-black hover:bg-white/90 shadow-lg shadow-black/10 font-semibold px-8 h-12 text-base"
+                >
+                  Começar a Jogar
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  onClick={() => openAuth('login')}
+                  className="text-white/80 hover:text-white hover:bg-white/10 h-12"
+                >
+                  Já tenho conta
+                </Button>
+              </>
+            ) : raffles && raffles.length > 0 ? (
+              <Button
+                size="lg"
+                asChild
+                className="bg-white text-black hover:bg-white/90 shadow-lg shadow-black/10 font-semibold px-8 h-12 text-base"
+              >
+                <Link to={`/empresa/${slug}/sorteio/${raffles[0].id}`}>
+                  Ver Sorteios
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -302,35 +362,43 @@ export default function LandingPage() {
                   <CardDescription>Regras gerais de participação</CardDescription>
                 </CardHeader>
                 <CardContent className="prose prose-sm max-w-none">
-                  <h4>1. Participação</h4>
-                  <p>
-                    Para participar dos sorteios, é necessário cadastrar-se com CPF válido e adquirir cartelas.
-                    Cada cartela contém números únicos gerados aleatoriamente.
-                  </p>
+                  {company.general_regulations ? (
+                    <div className="whitespace-pre-line">
+                      {company.general_regulations}
+                    </div>
+                  ) : (
+                    <>
+                      <h4>1. Participação</h4>
+                      <p>
+                        Para participar dos sorteios, é necessário cadastrar-se com CPF válido e adquirir cartelas.
+                        Cada cartela contém números únicos gerados aleatoriamente.
+                      </p>
 
-                  <h4>2. Premiação</h4>
-                  <p>
-                    Os prêmios são distribuídos de acordo com as faixas de acertos definidas em cada sorteio.
-                    Quanto mais números você acertar, maior será a sua premiação.
-                  </p>
+                      <h4>2. Premiação</h4>
+                      <p>
+                        Os prêmios são distribuídos de acordo com as faixas de acertos definidas em cada sorteio.
+                        Quanto mais números você acertar, maior será a sua premiação.
+                      </p>
 
-                  <h4>3. Ranking</h4>
-                  <p>
-                    O ranking é atualizado em tempo real conforme os números são sorteados.
-                    A posição é determinada pela quantidade de acertos e, em caso de empate, pela data de compra da cartela.
-                  </p>
+                      <h4>3. Ranking</h4>
+                      <p>
+                        O ranking é atualizado em tempo real conforme os números são sorteados.
+                        A posição é determinada pela quantidade de acertos e, em caso de empate, pela data de compra da cartela.
+                      </p>
 
-                  <h4>4. Pagamento de Prêmios</h4>
-                  <p>
-                    Os prêmios serão pagos aos ganhadores após a finalização oficial do sorteio.
-                    O pagamento será realizado via transferência bancária para conta do jogador.
-                  </p>
+                      <h4>4. Pagamento de Prêmios</h4>
+                      <p>
+                        Os prêmios serão pagos aos ganhadores após a finalização oficial do sorteio.
+                        O pagamento será realizado via transferência bancária para conta do jogador.
+                      </p>
 
-                  <h4>5. Disposições Gerais</h4>
-                  <p>
-                    A participação nos sorteios implica na aceitação integral deste regulamento.
-                    A empresa reserva-se o direito de alterar as regras mediante aviso prévio.
-                  </p>
+                      <h4>5. Disposições Gerais</h4>
+                      <p>
+                        A participação nos sorteios implica na aceitação integral deste regulamento.
+                        A empresa reserva-se o direito de alterar as regras mediante aviso prévio.
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -346,6 +414,8 @@ export default function LandingPage() {
         onModeChange={setAuthMode}
         companyId={company.id}
       />
+
+      <PublicFooter />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,27 +32,20 @@ export function BannerManager({ companyId }: BannerManagerProps) {
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['company-banners', companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('company_banners')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
-      return data as Banner[];
+      const data = await api.get<Banner[]>(`/banners/company/${companyId}`);
+      return data;
     },
   });
 
   const addMutation = useMutation({
     mutationFn: async (banner: { image_url: string; redirect_url: string }) => {
       const maxOrder = banners.length > 0 ? Math.max(...banners.map(b => b.display_order)) : -1;
-      const { error } = await supabase.from('company_banners').insert({
+      await api.post(`/banners`, {
         company_id: companyId,
         image_url: banner.image_url,
         redirect_url: banner.redirect_url || null,
         display_order: maxOrder + 1,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-banners', companyId] });
@@ -67,8 +60,7 @@ export function BannerManager({ companyId }: BannerManagerProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (bannerId: string) => {
-      const { error } = await supabase.from('company_banners').delete().eq('id', bannerId);
-      if (error) throw error;
+      await api.delete(`/banners/${bannerId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-banners', companyId] });
@@ -85,19 +77,7 @@ export function BannerManager({ companyId }: BannerManagerProps) {
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${companyId}/banners/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-assets')
-        .getPublicUrl(fileName);
-
+      const publicUrl = await api.upload(file, companyId, 'banners');
       setNewBanner(prev => ({ ...prev, image_url: publicUrl }));
       toast({ title: 'Imagem enviada!' });
     } catch (error: any) {

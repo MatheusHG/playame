@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -21,8 +21,8 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  
-  const { signIn, user, loading, isSuperAdmin, roles } = useAuth();
+
+  const { signIn, user, loading, isSuperAdmin, roles, affiliateInfo } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -32,52 +32,51 @@ export default function Auth() {
   // Role-based redirect after authentication
   useEffect(() => {
     const redirectBasedOnRole = async () => {
-      // Wait for auth to finish loading
       if (loading) return;
-      
-      // No user, don't redirect
       if (!user) return;
 
-      // If there's a specific "from" path that's a protected route, respect it
+      // Super admin always goes to super-admin panel
+      if (isSuperAdmin) {
+        const target = from && from.startsWith('/super-admin') ? from : '/super-admin/dashboard';
+        navigate(target, { replace: true });
+        return;
+      }
+
+      // Affiliate users (manager/cambista) ALWAYS go to affiliate portal
+      // Must come BEFORE company role check — affiliates also have COLABORADOR role
+      if (affiliateInfo) {
+        navigate(`/afiliado/${affiliateInfo.companySlug}/dashboard`, { replace: true });
+        return;
+      }
+
+      // Respect "from" path for non-affiliate company users
       if (from && from !== '/' && !from.startsWith('/auth')) {
         navigate(from, { replace: true });
         return;
       }
 
-      // Check if user is SUPER_ADMIN first (this is computed from roles)
-      if (isSuperAdmin) {
-        navigate('/super-admin/dashboard', { replace: true });
-        return;
-      }
-
-      // Check if user has a company role (ADMIN_EMPRESA or COLABORADOR)
+      // Company role redirect (ADMIN_EMPRESA or COLABORADOR without affiliate)
       const companyRole = roles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
       if (companyRole && companyRole.company_id) {
-        // Get company slug
-        const { data: company } = await supabase
-          .from('companies')
-          .select('slug')
-          .eq('id', companyRole.company_id)
-          .single();
-        
-        if (company?.slug) {
-          navigate(`/empresa/${company.slug}/dashboard`, { replace: true });
-          return;
+        try {
+          const company = await api.get<{ slug: string }>(`/companies/${companyRole.company_id}`);
+          if (company?.slug) {
+            navigate(`/empresa/${company.slug}/dashboard`, { replace: true });
+            return;
+          }
+        } catch {
+          // Fall through to default
         }
       }
 
-      // If roles are still empty but user exists, might still be loading roles
-      // Don't redirect to home yet, wait for roles
-      if (roles.length === 0) {
-        return;
+      // Default fallback
+      if (roles.length > 0) {
+        navigate('/', { replace: true });
       }
-
-      // Default fallback for users without any known role
-      navigate('/', { replace: true });
     };
 
     redirectBasedOnRole();
-  }, [user, loading, roles, isSuperAdmin, navigate, from]);
+  }, [user, loading, roles, isSuperAdmin, affiliateInfo, navigate, from]);
 
   const validateForm = (): boolean => {
     const result = authSchema.safeParse({ email, password });

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { getDisplayCpf } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { ThemedLayout } from '@/components/layouts/ThemedLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -13,12 +14,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  User, 
-  Wallet, 
-  Ticket, 
-  Trophy, 
-  Settings, 
+import {
+  User,
+  Wallet,
+  Ticket,
+  Trophy,
+  Settings,
   LogOut,
   DollarSign,
   CheckCircle,
@@ -26,7 +27,8 @@ import {
   XCircle,
   Eye,
   ExternalLink,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,19 +87,10 @@ export default function MinhaConta() {
     queryKey: ['player-tickets', player?.id],
     enabled: !!player?.id && !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select(`
-          *,
-          raffle:raffles(id, name, status, image_url, current_draw_count, numbers_per_ticket),
-          ticket_numbers(number),
-          ranking:ticket_ranking(hits, missing, rank_position, last_calculated_at)
-        `)
-        .eq('player_id', player!.id)
-        .eq('company_id', companyId!)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.playerGet<any[]>(`/players/${player!.id}/tickets`, {
+        companyId: companyId!,
+        include: 'raffle,ticket_numbers,ranking',
+      });
       return data || [];
     },
   });
@@ -107,17 +100,10 @@ export default function MinhaConta() {
     queryKey: ['player-payments', player?.id],
     enabled: !!player?.id && !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          raffle:raffles(id, name)
-        `)
-        .eq('player_id', player!.id)
-        .eq('company_id', companyId!)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.playerGet<any[]>(`/players/${player!.id}/payments`, {
+        companyId: companyId!,
+        include: 'raffle',
+      });
       return data || [];
     },
   });
@@ -131,13 +117,9 @@ export default function MinhaConta() {
       const raffleIds = [...new Set(tickets.map(t => t.raffle_id))];
       if (raffleIds.length === 0) return [];
 
-      const { data, error } = await supabase
-        .from('raffles')
-        .select('*')
-        .in('id', raffleIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.playerGet<any[]>(`/players/${player!.id}/raffles`, {
+        raffleIds: raffleIds.join(','),
+      });
       return data || [];
     },
   });
@@ -177,17 +159,12 @@ export default function MinhaConta() {
 
     setIsUpdating(true);
     try {
-      const { error } = await supabase.functions.invoke('player-auth', {
-        body: { 
-          action: 'change-password', 
-          companyId,
-          playerId: player?.id,
-          currentPassword,
-          newPassword,
-        },
+      await api.playerPost('/player-auth/change-password', {
+        companyId,
+        playerId: player?.id,
+        currentPassword,
+        newPassword,
       });
-
-      if (error) throw error;
 
       toast({
         title: 'Sucesso',
@@ -209,18 +186,14 @@ export default function MinhaConta() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('player-auth', {
-        body: {
-          action: 'update-profile',
-          companyId,
-          playerId: player?.id,
-          name: editName,
-          city: editCity,
-          phone: editPhone,
-        },
+      const data = await api.playerPost<any>('/player-auth/update-profile', {
+        companyId,
+        playerId: player?.id,
+        name: editName,
+        city: editCity,
+        phone: editPhone,
       });
 
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data?.player as any;
     },
@@ -245,10 +218,10 @@ export default function MinhaConta() {
     if (!player) return;
     setResumingPaymentId(paymentId);
     try {
-      const { data, error } = await supabase.functions.invoke('resume-checkout', {
-        body: { paymentId, playerId: player.id },
+      const data = await api.playerPost<any>('/stripe/resume', {
+        paymentId,
+        playerId: player.id,
       });
-      if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
@@ -311,6 +284,23 @@ export default function MinhaConta() {
   return (
     <ThemedLayout>
       <div className="container py-8">
+        {/* Community Channel Banner - Fixed */}
+        {company?.community_url && company?.community_name && (
+          <a
+            href={company.community_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-3 mb-6 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: company.primary_color || '#3B82F6' }}
+          >
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            <span>
+              Participe do nosso canal do <strong>{company.community_name}</strong>!
+            </span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          </a>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -324,7 +314,7 @@ export default function MinhaConta() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-2">
@@ -378,7 +368,7 @@ export default function MinhaConta() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="bilhetes" className="gap-2">
               <Ticket className="h-4 w-4 hidden sm:block" />
               Bilhetes
@@ -543,6 +533,9 @@ export default function MinhaConta() {
                             <p className="text-sm text-muted-foreground">
                               {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                             </p>
+                            <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                              Ref: {payment.id?.slice(0, 8).toUpperCase()}
+                            </p>
                           </div>
                           <div className="text-right space-y-1">
                             <p className="font-mono font-bold">R$ {Number(payment.amount).toFixed(2)}</p>
@@ -643,7 +636,7 @@ export default function MinhaConta() {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">CPF</Label>
-                    <p className="font-medium">***.***.***-{player.cpf_last4}</p>
+                    <p className="font-medium font-mono">{getDisplayCpf(player) || `***.***.***-${player.cpf_last4}`}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

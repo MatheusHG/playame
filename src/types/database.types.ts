@@ -25,6 +25,20 @@ export interface Company {
   payment_method: PaymentMethod;
   admin_fee_percentage: number;
   status: CompanyStatus;
+  footer_social_links?: any;
+  footer_menus?: any;
+  community_url?: string | null;
+  community_name?: string | null;
+  general_regulations?: string | null;
+  about_us?: string | null;
+  contact_info?: {
+    whatsapp?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    instagram?: string;
+    facebook?: string;
+  } | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -68,8 +82,10 @@ export interface Raffle {
   prize_mode: PrizeMode;
   fixed_prize_value: number;
   prize_percent_of_sales: number;
+  company_profit_percent: number;
   current_draw_count: number;
   rules_version: number;
+  image_url: string | null;
   scheduled_at: string | null;
   finished_at: string | null;
   deleted_at: string | null;
@@ -151,12 +167,38 @@ export interface Payment {
   discount_rule_id?: string | null;
   admin_fee: number;
   net_amount: number;
+  company_retention?: number | null;
+  prize_pool_contribution?: number | null;
   stripe_payment_intent_id: string | null;
   stripe_checkout_session_id: string | null;
   status: PaymentStatus;
   processed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AffiliateCommission {
+  id: string;
+  payment_id: string;
+  company_id: string;
+  raffle_id: string;
+  ticket_id: string;
+  sale_amount: number;
+  super_admin_percent: number;
+  super_admin_amount: number;
+  manager_id: string | null;
+  manager_percent: number | null;
+  manager_gross_amount: number | null;
+  manager_net_amount: number | null;
+  cambista_id: string | null;
+  cambista_percent_of_manager: number | null;
+  cambista_percent: number | null;
+  cambista_amount: number | null;
+  company_net_amount: number;
+  company_profit_percent?: number | null;
+  company_retention_amount?: number | null;
+  prize_pool_contribution?: number | null;
+  created_at: string;
 }
 
 export interface AuditLog {
@@ -184,10 +226,17 @@ export interface FinancialLog {
 }
 
 // Tipos de contexto
+export interface AffiliateInfo {
+  id: string;
+  companySlug: string;
+  type: 'manager' | 'cambista';
+}
+
 export interface AuthContextType {
-  user: import('@supabase/supabase-js').User | null;
-  session: import('@supabase/supabase-js').Session | null;
+  user: { id: string; email: string } | null;
+  session: { token: string | null } | null;
   roles: UserRole[];
+  affiliateInfo: AffiliateInfo | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -202,6 +251,7 @@ export interface TenantContextType {
   loading: boolean;
   error: string | null;
   setCompanySlug: (slug: string) => void;
+  refetchCompany: () => Promise<void>;
 }
 
 // Tipos de ranking público (dados mascarados)

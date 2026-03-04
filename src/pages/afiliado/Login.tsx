@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,15 +32,7 @@ export default function AffiliateLogin() {
   const { data: company, isLoading: companyLoading } = useQuery({
     queryKey: ['company', slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .single();
-
-      if (error) throw error;
+      const data = await api.get<any>(`/companies/by-slug/${slug}`);
       return data;
     },
     enabled: !!slug,

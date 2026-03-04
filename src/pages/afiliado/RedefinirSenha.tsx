@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,38 +35,26 @@ export default function RedefinirSenha() {
   const { data: company, isLoading: companyLoading } = useQuery({
     queryKey: ['company', slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .single();
-
-      if (error) throw error;
+      const data = await api.get<any>(`/companies/${slug}`);
       return data;
     },
     enabled: !!slug,
   });
 
-  // Listen for password recovery event
+  // Check for recovery token in URL hash
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setSessionReady(true);
-      } else if (session) {
-        setSessionReady(true);
-      }
-    });
-
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    const hash = window.location.hash;
+    if (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) {
+      // Extract token from hash
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        localStorage.setItem('recovery_token', accessToken);
         setSessionReady(true);
       }
-    });
-
-    return () => subscription.unsubscribe();
+    } else if (localStorage.getItem('recovery_token')) {
+      setSessionReady(true);
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,13 +77,12 @@ export default function RedefinirSenha() {
     setLoading(true);
 
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password,
+      const recoveryToken = localStorage.getItem('recovery_token');
+      await api.post('/auth/update-password', {
+        password,
+        token: recoveryToken,
       });
-
-      if (updateError) {
-        throw updateError;
-      }
+      localStorage.removeItem('recovery_token');
 
       setSuccess(true);
       toast({

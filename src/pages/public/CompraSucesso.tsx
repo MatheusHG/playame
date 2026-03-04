@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useTenant, useCompanyBranding } from '@/contexts/TenantContext';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Ticket, Home, AlertCircle } from 'lucide-react';
+import { PublicFooter } from '@/components/public/PublicFooter';
 
 export default function CompraSucesso() {
   const { slug } = useParams<{ slug: string }>();
@@ -29,20 +30,9 @@ export default function CompraSucesso() {
     queryKey: ['payment', paymentId],
     enabled: !!paymentId && !!player,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          tickets!inner(
-            *,
-            ticket_numbers(number)
-          ),
-          raffles!inner(name)
-        `)
-        .eq('id', paymentId!)
-        .single();
-
-      if (error) throw error;
+      const data = await api.playerGet<any>(`/payments/${paymentId}`, {
+        include: 'tickets,ticket_numbers,raffle',
+      });
       return data;
     },
   });
@@ -90,7 +80,7 @@ export default function CompraSucesso() {
                 <AlertCircle className="h-16 w-16 mx-auto text-destructive mb-4" />
                 <h2 className="text-xl font-bold mb-2">Pagamento não encontrado</h2>
                 <p className="text-muted-foreground mb-6">
-                  Não foi possível verificar seu pagamento. Se você fez o pagamento, 
+                  Não foi possível verificar seu pagamento. Se você fez o pagamento,
                   aguarde alguns minutos e verifique suas cartelas.
                 </p>
                 <Button asChild>
@@ -112,6 +102,10 @@ export default function CompraSucesso() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="bg-muted rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ref</span>
+                    <span className="font-mono font-medium text-xs">{payment.id?.slice(0, 8).toUpperCase()}</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Sorteio</span>
                     <span className="font-medium">{(payment.raffles as { name: string })?.name}</span>
@@ -160,6 +154,8 @@ export default function CompraSucesso() {
           )}
         </div>
       </main>
+
+      <PublicFooter />
     </div>
   );
 }

@@ -89,7 +89,7 @@ export function DataTable<T extends object>({
         </div>
       )}
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -132,10 +132,9 @@ export function DataTable<T extends object>({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-2">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {startIndex + 1} a {Math.min(startIndex + pageSize, filteredData.length)} de{' '}
-            {filteredData.length} registros
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2">
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {startIndex + 1}–{Math.min(startIndex + pageSize, filteredData.length)} de {filteredData.length}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -146,8 +145,8 @@ export function DataTable<T extends object>({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm">
-              Página {currentPage} de {totalPages}
+            <span className="text-xs sm:text-sm whitespace-nowrap">
+              {currentPage} / {totalPages}
             </span>
             <Button
               variant="outline"

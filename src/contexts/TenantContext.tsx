@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { TenantContextType, Company } from '@/types/database.types';
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -21,29 +21,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const isUuid =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          identifier
-        );
+      const data = await api.get<Company>(`/companies/${encodeURIComponent(identifier)}`);
 
-      // Se NÃO for UUID, não consultamos por `id` (evita erro de UUID inválido).
-      const { data, error: fetchError } = await supabase
-        .from('companies')
-        .select('*')
-        .eq(isUuid ? 'id' : 'slug', identifier)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Error fetching company:', fetchError);
-        setError('Erro ao carregar empresa');
-        setCompany(null);
-      } else if (!data) {
+      if (!data) {
         setError('Empresa não encontrada');
         setCompany(null);
       } else {
-        setCompany(data as Company);
+        setCompany(data);
         setError(null);
       }
     } catch (err) {
@@ -65,11 +49,18 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setCurrentSlug(slug);
   }, []);
 
+  const refetchCompany = useCallback(async () => {
+    if (currentSlug) {
+      await fetchCompanyByIdentifier(currentSlug);
+    }
+  }, [currentSlug, fetchCompanyByIdentifier]);
+
   const value: TenantContextType = {
     company,
     loading,
     error,
     setCompanySlug,
+    refetchCompany,
   };
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;

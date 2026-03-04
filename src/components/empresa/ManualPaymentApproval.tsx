@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -44,10 +44,10 @@ export function ManualPaymentApproval({ payment, onSuccess, hideButtons, onRegis
 
   const approveMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manual-payment-action', {
-        body: { action: 'approve', paymentId: payment.id },
+      const data = await api.post<any>('/manual-payment-action', {
+        action: 'approve',
+        paymentId: payment.id,
       });
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return true;
     },
@@ -75,10 +75,11 @@ export function ManualPaymentApproval({ payment, onSuccess, hideButtons, onRegis
 
   const rejectMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manual-payment-action', {
-        body: { action: 'reject', paymentId: payment.id, reason: reason || undefined },
+      const data = await api.post<any>('/manual-payment-action', {
+        action: 'reject',
+        paymentId: payment.id,
+        reason: reason || undefined,
       });
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return true;
     },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -72,15 +72,8 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ['permission-profiles', companyId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('permission_profiles')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('affiliate_type')
-        .order('name');
-
-      if (error) throw error;
-      return data as PermissionProfile[];
+      const data = await api.get<PermissionProfile[]>(`/permission-profiles/${companyId}`);
+      return data;
     },
     enabled: !!companyId,
   });
@@ -90,31 +83,22 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
     mutationFn: async (data: typeof formData & { id?: string }) => {
       if (data.id) {
         // Update
-        const { error } = await (supabase as any)
-          .from('permission_profiles')
-          .update({
-            name: data.name,
-            description: data.description || null,
-            permissions: data.permissions,
-            is_default: data.is_default,
-          })
-          .eq('id', data.id);
-
-        if (error) throw error;
+        await api.patch(`/permission-profiles/${data.id}`, {
+          name: data.name,
+          description: data.description || null,
+          permissions: data.permissions,
+          is_default: data.is_default,
+        });
       } else {
         // Create
-        const { error } = await (supabase as any)
-          .from('permission_profiles')
-          .insert({
-            company_id: companyId,
-            name: data.name,
-            description: data.description || null,
-            affiliate_type: data.affiliate_type,
-            permissions: data.permissions,
-            is_default: data.is_default,
-          });
-
-        if (error) throw error;
+        await api.post('/permission-profiles', {
+          company_id: companyId,
+          name: data.name,
+          description: data.description || null,
+          affiliate_type: data.affiliate_type,
+          permissions: data.permissions,
+          is_default: data.is_default,
+        });
       }
     },
     onSuccess: () => {
@@ -138,12 +122,7 @@ export function PermissionProfilesManager({ companyId }: PermissionProfilesManag
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from('permission_profiles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.delete(`/permission-profiles/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['permission-profiles', companyId] });

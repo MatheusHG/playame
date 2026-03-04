@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { api } from '@/lib/api';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { LoadingState } from '@/components/shared/LoadingState';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Bluetooth, Loader2 } from 'lucide-react';
+import { bluetoothPrinter, formatReceiptLines } from '@/lib/bluetooth-printer';
+import { useTenant } from '@/contexts/TenantContext';
 
 interface SaleDetailDialogProps {
   open: boolean;
@@ -14,66 +20,72 @@ interface SaleDetailDialogProps {
 }
 
 export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDialogProps) {
+  const { company } = useTenant();
+  const { toast } = useToast();
+  const [isPrintingBluetooth, setIsPrintingBluetooth] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ['sale-detail', ticketId],
     queryFn: async () => {
       if (!ticketId) return null;
 
-      // Fetch ticket with relations
-      const { data: ticket, error: ticketError } = await (supabase as any)
-        .from('tickets')
-        .select(`
-          *,
-          raffle:raffles(name, ticket_price),
-          player:players(name, cpf_last4, city)
-        `)
-        .eq('id', ticketId)
-        .single();
-
-      if (ticketError) throw ticketError;
-
-      // Fetch ticket numbers
-      const { data: numbers, error: numbersError } = await (supabase as any)
-        .from('ticket_numbers')
-        .select('number')
-        .eq('ticket_id', ticketId)
-        .order('number', { ascending: true });
-
-      if (numbersError) throw numbersError;
-
-      // Fetch payment
-      const { data: payments, error: paymentError } = await (supabase as any)
-        .from('payments')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .limit(1);
-
-      if (paymentError) throw paymentError;
-      const payment = payments?.[0] || null;
-
-      // Fetch commission split
-      let commission = null;
-      if (payment) {
-        const { data: commData } = await (supabase as any)
-          .from('affiliate_commissions')
-          .select(`
-            *,
-            manager:affiliates!affiliate_commissions_manager_id_fkey(name),
-            cambista:affiliates!affiliate_commissions_cambista_id_fkey(name)
-          `)
-          .eq('payment_id', payment.id)
-          .limit(1);
-
-        commission = commData?.[0] || null;
-      }
-
-      return { ticket, numbers: numbers || [], payment, commission };
+      const data = await api.get<any>(`/tickets/${ticketId}/detail`);
+      return data;
     },
     enabled: !!ticketId && open,
   });
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+  const handleBluetoothPrint = async () => {
+    if (!data || !company) return;
+
+    setIsPrintingBluetooth(true);
+    try {
+      // Group numbers into tickets (each ticket_number group = 1 cartela)
+      const ticketNumbers = data.numbers?.map((n: any) => n.number) || [];
+      const numbersPerTicket = data.ticket.raffle?.numbers_per_ticket || ticketNumbers.length;
+      const tickets: Array<{ numbers: number[] }> = [];
+
+      if (numbersPerTicket > 0 && ticketNumbers.length > 0) {
+        for (let i = 0; i < ticketNumbers.length; i += numbersPerTicket) {
+          tickets.push({ numbers: ticketNumbers.slice(i, i + numbersPerTicket) });
+        }
+      } else {
+        tickets.push({ numbers: ticketNumbers });
+      }
+
+      const raffleId = data.ticket.raffle_id || data.ticket.raffle?.id;
+      const companySlug = company.slug;
+      const paymentId = data.payment?.id;
+      const trackingUrl = raffleId && companySlug && paymentId
+        ? `${window.location.origin}/empresa/${companySlug}/sorteio/${raffleId}/acompanhar?ref=${paymentId}`
+        : undefined;
+
+      const lines = formatReceiptLines({
+        companyName: company.name,
+        raffleName: data.ticket.raffle?.name || 'Sorteio',
+        customerName: data.ticket.player?.name || 'Cliente',
+        tickets,
+        ticketPrice: Number(data.ticket.raffle?.ticket_price || 0),
+        totalAmount: Number(data.payment?.amount || 0),
+        paymentRef: data.payment?.id || ticketId || '',
+        createdAt: new Date(data.ticket.created_at),
+        trackingUrl,
+      });
+
+      await bluetoothPrinter.printReceipt(lines);
+      toast({ title: 'Recibo impresso com sucesso!' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      if (message !== 'Nenhum dispositivo selecionado.') {
+        toast({ variant: 'destructive', title: 'Erro na impressão Bluetooth', description: message });
+      }
+    } finally {
+      setIsPrintingBluetooth(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,6 +102,10 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
           <div className="space-y-4">
             {/* Info básica */}
             <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Ref</span>
+                <p className="font-mono font-medium text-xs">{(data.payment?.id || ticketId || '').slice(0, 8).toUpperCase()}</p>
+              </div>
               <div>
                 <span className="text-muted-foreground">Sorteio</span>
                 <p className="font-medium">{data.ticket.raffle?.name}</p>
@@ -156,7 +172,7 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
                       </div>
 
                       <div className="flex justify-between border-t pt-2">
-                        <span>Valor para empresa (após taxa)</span>
+                        <span>Valor bruto empresa (após taxa admin)</span>
                         <span className="font-medium">
                           {formatCurrency(
                             Number(data.payment.amount) - Number(data.commission.super_admin_amount)
@@ -178,7 +194,7 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
                           {data.commission.cambista_id && (
                             <div className="flex justify-between text-amber-600 dark:text-amber-400 pl-4 text-xs">
                               <span>
-                                └ Operador: {data.commission.cambista?.name} ({data.commission.cambista_percent_of_manager}% do gerente)
+                                └ Operador: {data.commission.cambista?.name} ({data.commission.cambista_percent_of_manager ?? data.commission.cambista_percent}% da cartela)
                               </span>
                               <span className="font-medium">
                                 {formatCurrency(Number(data.commission.cambista_amount))}
@@ -197,10 +213,39 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
                         </>
                       )}
 
-                      <div className="flex justify-between border-t pt-2 font-semibold">
-                        <span>Empresa (líquido final)</span>
-                        <span>{formatCurrency(Number(data.commission.company_net_amount))}</span>
-                      </div>
+                      {/* Company retention vs prize pool */}
+                      {data.commission.company_retention_amount != null && Number(data.commission.company_retention_amount) > 0 && (
+                        <div className="flex justify-between text-orange-600 dark:text-orange-400 border-t pt-2">
+                          <span>
+                            Retenção empresa ({Number(data.commission.company_profit_percent || 0).toFixed(1)}%)
+                          </span>
+                          <span className="font-medium">
+                            {formatCurrency(Number(data.commission.company_retention_amount))}
+                          </span>
+                        </div>
+                      )}
+
+                      {data.commission.prize_pool_contribution != null && Number(data.commission.prize_pool_contribution) > 0 && (
+                        <div className="flex justify-between text-green-600 dark:text-green-400">
+                          <span>Contribuição ao prêmio</span>
+                          <span className="font-medium">
+                            {formatCurrency(Number(data.commission.prize_pool_contribution))}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Final summary - show retention if available, otherwise full net */}
+                      {data.commission.company_retention_amount != null && Number(data.commission.company_retention_amount) > 0 ? (
+                        <div className="flex justify-between border-t pt-2 font-semibold text-orange-700 dark:text-orange-300">
+                          <span>Empresa (retenção)</span>
+                          <span>{formatCurrency(Number(data.commission.company_retention_amount))}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between border-t pt-2 font-semibold">
+                          <span>Empresa (líquido final)</span>
+                          <span>{formatCurrency(Number(data.commission.company_net_amount))}</span>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
@@ -220,6 +265,28 @@ export function SaleDetailDialog({ open, onOpenChange, ticketId }: SaleDetailDia
               )}
             </div>
           </div>
+        )}
+
+        {/* Bluetooth print button */}
+        {data && bluetoothPrinter.isSupported && (
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleBluetoothPrint}
+              disabled={isPrintingBluetooth}
+            >
+              {isPrintingBluetooth ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Bluetooth className="h-4 w-4 mr-2" />
+              )}
+              {bluetoothPrinter.isConnected
+                ? `Imprimir (${bluetoothPrinter.deviceName || 'Bluetooth'})`
+                : 'Impressora Bluetooth'
+              }
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

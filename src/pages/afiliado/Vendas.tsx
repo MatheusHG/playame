@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,19 +39,7 @@ export default function Vendas() {
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['affiliate-sales', affiliate?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('tickets')
-        .select(`
-          *,
-          player:players(id, name, cpf_last4, phone, city),
-          raffle:raffles(id, name, ticket_price),
-          payment:payments(id, status, amount)
-        `)
-        .eq('affiliate_id', affiliate?.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/affiliates/${affiliate?.id}/sales`);
       return data;
     },
     enabled: !!affiliate?.id && hasPermission('can_view_own_sales'),
@@ -70,13 +58,16 @@ export default function Vendas() {
     return configs[status] || { variant: 'outline', label: status };
   };
 
+  const isManager = affiliate?.type === 'manager';
+
   const filteredTickets = tickets?.filter((ticket: any) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
       ticket.player?.name?.toLowerCase().includes(search) ||
       ticket.player?.cpf_last4?.includes(search) ||
-      ticket.raffle?.name?.toLowerCase().includes(search)
+      ticket.raffle?.name?.toLowerCase().includes(search) ||
+      ticket.affiliate?.name?.toLowerCase().includes(search)
     );
   });
 
@@ -115,10 +106,10 @@ export default function Vendas() {
   }
 
   return (
-    <AffiliateLayout title="Minhas Vendas" description="Acompanhe todas as suas vendas">
+    <AffiliateLayout title={isManager ? "Vendas da Equipe" : "Minhas Vendas"} description={isManager ? "Acompanhe as vendas da sua equipe" : "Acompanhe todas as suas vendas"}>
       <div className="space-y-6">
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -192,12 +183,14 @@ export default function Vendas() {
 
         {/* Sales Table */}
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Ref</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Sorteio</TableHead>
+                  {isManager && <TableHead>Vendedor</TableHead>}
                   <TableHead>Valor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data</TableHead>
@@ -206,7 +199,7 @@ export default function Vendas() {
               <TableBody>
                 {filteredTickets?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isManager ? 7 : 6} className="text-center py-8 text-muted-foreground">
                       Nenhuma venda encontrada
                     </TableCell>
                   </TableRow>
@@ -215,6 +208,9 @@ export default function Vendas() {
                     const status = getStatusConfig(ticket.status);
                     return (
                       <TableRow key={ticket.id}>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {(ticket.payment?.[0]?.id || ticket.id)?.slice(0, 8).toUpperCase()}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -229,6 +225,11 @@ export default function Vendas() {
                         <TableCell>
                           <p className="font-medium">{ticket.raffle?.name}</p>
                         </TableCell>
+                        {isManager && (
+                          <TableCell>
+                            <p className="text-sm">{ticket.affiliate?.name || '-'}</p>
+                          </TableCell>
+                        )}
                         <TableCell>
                           {formatCurrency(ticket.raffle?.ticket_price || 0)}
                         </TableCell>

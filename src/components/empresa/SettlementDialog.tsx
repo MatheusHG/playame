@@ -66,7 +66,7 @@ export function SettlementDialog({ raffleId, raffleName, isFinished }: Settlemen
           Encerrar e Apurar Sorteio
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -138,6 +138,7 @@ export function SettlementDialog({ raffleId, raffleName, isFinished }: Settlemen
                         Nenhum ganhador encontrado neste sorteio.
                       </p>
                     ) : (
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -173,6 +174,7 @@ export function SettlementDialog({ raffleId, raffleName, isFinished }: Settlemen
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     )}
                   </CardContent>
                 </Card>

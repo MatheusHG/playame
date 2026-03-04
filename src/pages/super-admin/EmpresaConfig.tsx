@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, LogIn, Building2, Palette, DollarSign, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Company } from '@/types/database.types';
@@ -35,14 +36,8 @@ export default function SuperAdminEmpresaConfig() {
   const { data: company, isLoading } = useQuery({
     queryKey: ['company', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return data as Company;
+      const data = await api.get<Company>(`/companies/${id}`);
+      return data;
     },
   });
 
@@ -63,12 +58,7 @@ export default function SuperAdminEmpresaConfig() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<Company>) => {
-      const { error } = await supabase
-        .from('companies')
-        .update(data)
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.patch(`/companies/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company', id] });
@@ -84,8 +74,8 @@ export default function SuperAdminEmpresaConfig() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     updateMutation.mutate({
       ...formData,
       logo_url: formData.logo_url || null,
@@ -116,24 +106,44 @@ export default function SuperAdminEmpresaConfig() {
       title={`Configurar: ${company.name}`}
       description="Configure as informações e integrações da empresa"
     >
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <Button
           variant="ghost"
+          size="sm"
           onClick={() => navigate('/super-admin/empresas')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para Empresas
+          Voltar
         </Button>
         <Button
           variant="outline"
+          size="sm"
           onClick={() => navigate(`/empresa/${company.slug}/dashboard`)}
         >
-          Acessar Empresa
+          <LogIn className="mr-2 h-4 w-4" />
+          Acessar empresa
         </Button>
       </div>
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Informações Básicas */}
+
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="geral" className="flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Dados Gerais</span>
+            <span className="sm:hidden">Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="branding" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            <span>Branding</span>
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            <span>Financeiro</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Dados Gerais */}
+        <TabsContent value="geral" className="pt-4">
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
@@ -170,12 +180,20 @@ export default function SuperAdminEmpresaConfig() {
               </div>
             </CardContent>
           </Card>
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => handleSubmit()} disabled={updateMutation.isPending}>
+              <Save className="mr-2 h-4 w-4" />
+              {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </div>
+        </TabsContent>
 
-          {/* Branding */}
+        {/* Tab: Branding */}
+        <TabsContent value="branding" className="pt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Branding</CardTitle>
-              <CardDescription>Cores e identidade visual</CardDescription>
+              <CardTitle>Identidade Visual</CardTitle>
+              <CardDescription>Cores e identidade visual da empresa</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -225,8 +243,16 @@ export default function SuperAdminEmpresaConfig() {
               </div>
             </CardContent>
           </Card>
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => handleSubmit()} disabled={updateMutation.isPending}>
+              <Save className="mr-2 h-4 w-4" />
+              {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </div>
+        </TabsContent>
 
-          {/* Configurações Financeiras */}
+        {/* Tab: Financeiro */}
+        <TabsContent value="financeiro" className="space-y-6 pt-4">
           <Card>
             <CardHeader>
               <CardTitle>Configurações Financeiras</CardTitle>
@@ -306,22 +332,22 @@ export default function SuperAdminEmpresaConfig() {
             </CardContent>
           </Card>
 
-          {/* Integração Stripe - só mostra se payment_method === 'online' */}
+          {/* Integração Stripe */}
           {formData.payment_method === 'online' && (
             <StripeConfigCard
               companyId={company.id}
               hasStripeConfigured={!!company.stripe_secret_key_encrypted}
             />
           )}
-        </div>
 
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" disabled={updateMutation.isPending}>
-            <Save className="mr-2 h-4 w-4" />
-            {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-        </div>
-      </form>
+          <div className="flex justify-end">
+            <Button onClick={() => handleSubmit()} disabled={updateMutation.isPending}>
+              <Save className="mr-2 h-4 w-4" />
+              {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </SuperAdminLayout>
   );
 }

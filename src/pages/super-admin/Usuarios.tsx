@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Button } from '@/components/ui/button';
@@ -56,75 +56,27 @@ export default function SuperAdminUsuarios() {
   const { data: userRoles = [], isLoading } = useQuery({
     queryKey: ['user-roles'],
     queryFn: async () => {
-      const { data: roles, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch company names for roles with company_id
-      const companyIds = [...new Set(roles.filter(r => r.company_id).map(r => r.company_id))];
-      let companiesMap: Record<string, string> = {};
-      
-      if (companyIds.length > 0) {
-        const { data: companies } = await supabase
-          .from('companies')
-          .select('id, name')
-          .in('id', companyIds);
-        
-        companiesMap = (companies || []).reduce((acc, c) => {
-          acc[c.id] = c.name;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      return roles.map(role => ({
-        ...role,
-        company_name: role.company_id ? companiesMap[role.company_id] : undefined,
-      })) as UserRoleWithDetails[];
+      const data = await api.get<UserRoleWithDetails[]>('/admin/user-roles');
+      return data;
     },
   });
 
   const { data: companies = [] } = useQuery({
     queryKey: ['companies-select'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .order('name');
-
-      if (error) throw error;
-      return data as Pick<Company, 'id' | 'name'>[];
+      const data = await api.get<Pick<Company, 'id' | 'name'>[]>('/companies', { status: 'active' });
+      return data;
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof newRole) => {
-      // First create the user via Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      await api.post('/auth/register', {
         email: data.email,
         password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-        },
+        role: data.role,
+        company_id: data.role === 'SUPER_ADMIN' ? null : data.company_id || null,
       });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Falha ao criar usuário');
-
-      // Then create the user role
-      const { error: roleError } = await supabase.from('user_roles').insert([
-        {
-          user_id: authData.user.id,
-          role: data.role,
-          company_id: data.role === 'SUPER_ADMIN' ? null : data.company_id || null,
-        },
-      ]);
-
-      if (roleError) throw roleError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-roles'] });
@@ -143,8 +95,7 @@ export default function SuperAdminUsuarios() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('user_roles').delete().eq('id', id);
-      if (error) throw error;
+      await api.delete(`/admin/user-roles/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-roles'] });

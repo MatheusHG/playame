@@ -16,6 +16,10 @@ import LandingPage from "./pages/public/LandingPage";
 import SorteioPage from "./pages/public/SorteioPage";
 import CompraSucesso from "./pages/public/CompraSucesso";
 import MinhaConta from "./pages/public/MinhaConta";
+import AcompanharSorteio from "./pages/public/AcompanharSorteio";
+import Ganhadores from "./pages/public/Ganhadores";
+import QuemSomos from "./pages/public/QuemSomos";
+import Contato from "./pages/public/Contato";
 
 // Super Admin Pages
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -40,6 +44,8 @@ import AfiliadoDetalhe from "./pages/empresa/AfiliadoDetalhe";
 import EmpresaFinanceiro from "./pages/empresa/Financeiro";
 import EmpresaConfiguracoes from "./pages/empresa/Configuracoes";
 import EmpresaWebhookLogs from "./pages/empresa/WebhookLogs";
+import EmpresaRegulamento from "./pages/empresa/Regulamento";
+import EmpresaAuditoria from "./pages/empresa/Auditoria";
 import VendaRua from "./pages/empresa/VendaRua";
 
 // Affiliate Portal Pages
@@ -73,8 +79,12 @@ const App = () => (
                   {/* Public Company Landing Page */}
                   <Route path="/empresa/:slug" element={<LandingPage />} />
                   <Route path="/empresa/:slug/sorteio/:raffleId" element={<SorteioPage />} />
+                  <Route path="/empresa/:slug/sorteio/:raffleId/acompanhar" element={<AcompanharSorteio />} />
                   <Route path="/empresa/:slug/compra-sucesso" element={<CompraSucesso />} />
                   <Route path="/empresa/:slug/minha-conta" element={<MinhaConta />} />
+                  <Route path="/empresa/:slug/ganhadores" element={<Ganhadores />} />
+                  <Route path="/empresa/:slug/quem-somos" element={<QuemSomos />} />
+                  <Route path="/empresa/:slug/contato" element={<Contato />} />
 
                   {/* Affiliate Portal routes */}
                   <Route path="/afiliado/:slug/login" element={<AffiliateLogin />} />
@@ -241,6 +251,22 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="ADMIN_EMPRESA">
                     <EmpresaWebhookLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/regulamento"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <EmpresaRegulamento />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresa/:slug/auditoria"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN_EMPRESA">
+                    <EmpresaAuditoria />
                   </ProtectedRoute>
                 }
               />

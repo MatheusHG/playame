@@ -1,26 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
-
-type Ticket = Database['public']['Tables']['tickets']['Row'];
-type TicketNumber = Database['public']['Tables']['ticket_numbers']['Row'];
-type TicketRanking = Database['public']['Tables']['ticket_ranking']['Row'];
-type Player = Database['public']['Tables']['players']['Row'];
+import type { Ticket, TicketNumber, TicketRanking, Player } from '@/types/database.types';
 
 export interface TicketWithDetails extends Ticket {
   ticket_numbers: TicketNumber[];
-  players: Pick<Player, 'id' | 'name' | 'cpf_last4' | 'city'> | null;
+  player: Pick<Player, 'id' | 'name' | 'cpf_last4' | 'city'> & { cpf_encrypted?: string | null } | null;
+  payments?: Array<{ id: string }>;
+  affiliate?: { id: string; name: string; type: string } | null;
 }
 
 export interface RankingEntry extends TicketRanking {
-  tickets: {
+  ticket: {
     id: string;
     purchased_at: string | null;
     snapshot_data: Record<string, unknown> | null;
     ticket_numbers: TicketNumber[];
+    eligible_prize_tiers: string[];
   } | null;
-  players: Pick<Player, 'id' | 'name' | 'cpf_last4' | 'city'> | null;
+  player: Pick<Player, 'id' | 'name' | 'cpf_last4' | 'city'> & { cpf_encrypted?: string | null; phone?: string | null } | null;
 }
 
 export function useRaffleTickets(raffleId: string | undefined) {
@@ -28,19 +26,7 @@ export function useRaffleTickets(raffleId: string | undefined) {
     queryKey: ['raffle-tickets', raffleId],
     enabled: !!raffleId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select(`
-          *,
-          ticket_numbers(*),
-          players(id, name, cpf_last4, city)
-        `)
-        .eq('raffle_id', raffleId!)
-        .neq('status', 'cancelled')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as TicketWithDetails[];
+      return api.get<TicketWithDetails[]>(`/tickets/raffle/${raffleId}`);
     },
   });
 }
@@ -49,20 +35,9 @@ export function useRaffleRanking(raffleId: string | undefined) {
   return useQuery({
     queryKey: ['raffle-ranking', raffleId],
     enabled: !!raffleId,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ticket_ranking')
-        .select(`
-          *,
-          tickets(id, purchased_at, snapshot_data, ticket_numbers(*)),
-          players(id, name, cpf_last4, city)
-        `)
-        .eq('raffle_id', raffleId!)
-        .order('rank_position', { ascending: true, nullsFirst: false });
-
-      if (error) throw error;
-      return data as RankingEntry[];
+      return api.get<RankingEntry[]>(`/tickets/raffle/${raffleId}/ranking`);
     },
   });
 }
@@ -73,14 +48,9 @@ export function useTicketMutations(companyId: string | undefined) {
 
   const cancelTicket = useMutation({
     mutationFn: async (ticketId: string) => {
-      const { error } = await supabase
-        .from('tickets')
-        .update({ status: 'cancelled' })
-        .eq('id', ticketId);
-
-      if (error) throw error;
+      return api.patch(`/tickets/${ticketId}/cancel`);
     },
-    onSuccess: (_, ticketId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raffle-tickets'] });
       queryClient.invalidateQueries({ queryKey: ['raffle-ranking'] });
       toast({ title: 'Cartela cancelada' });
@@ -99,11 +69,7 @@ export function useSettleRaffle() {
 
   return useMutation({
     mutationFn: async (raffleId: string) => {
-      const { data, error } = await supabase
-        .rpc('settle_raffle_winners', { p_raffle_id: raffleId });
-
-      if (error) throw error;
-      return data as {
+      return api.post<{
         success: boolean;
         total_sales: number;
         prize_pool: number;
@@ -117,7 +83,7 @@ export function useSettleRaffle() {
           object_description: string | null;
         }>;
         error?: string;
-      };
+      }>(`/raffles/${raffleId}/settle`);
     },
     onSuccess: (data, raffleId) => {
       if (data?.error) {
@@ -127,9 +93,9 @@ export function useSettleRaffle() {
       queryClient.invalidateQueries({ queryKey: ['raffle', raffleId] });
       queryClient.invalidateQueries({ queryKey: ['raffles'] });
       queryClient.invalidateQueries({ queryKey: ['raffle-ranking', raffleId] });
-      toast({ 
-        title: 'Sorteio apurado!', 
-        description: `${data?.winners?.length || 0} ganhador(es) encontrado(s)` 
+      toast({
+        title: 'Sorteio apurado!',
+        description: `${data?.winners?.length || 0} ganhador(es) encontrado(s)`
       });
     },
     onError: (error: Error) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,28 +27,8 @@ export default function WebhookLogs() {
   const { data: logs = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ['webhook-logs'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
-
-      // Fetch company names
-      const companyIds = [...new Set(data.filter(l => l.company_id).map(l => l.company_id!))];
-      let companiesMap: Record<string, string> = {};
-      if (companyIds.length > 0) {
-        const { data: companies } = await supabase
-          .from('companies')
-          .select('id, name')
-          .in('id', companyIds);
-        companiesMap = (companies || []).reduce((acc, c) => {
-          acc[c.id] = c.name;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      return data.map(log => ({ ...log, company_name: log.company_id ? companiesMap[log.company_id] : undefined }));
+      const data = await api.get<any[]>('/webhook-logs');
+      return data;
     },
     refetchInterval: 30000,
   });
@@ -119,7 +99,7 @@ export default function WebhookLogs() {
       </Card>
 
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Webhook</DialogTitle>
           </DialogHeader>

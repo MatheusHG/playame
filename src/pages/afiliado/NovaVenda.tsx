@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,15 +46,7 @@ export default function NovaVenda() {
   const { data: raffles, isLoading: loadingRaffles } = useQuery({
     queryKey: ['affiliate-active-raffles', affiliate?.company_id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('raffles')
-        .select('*')
-        .eq('company_id', affiliate?.company_id)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/raffles/company/${affiliate?.company_id}`, { status: 'active' });
       return data;
     },
     enabled: !!affiliate?.company_id,
@@ -101,95 +93,29 @@ export default function NovaVenda() {
   const createSaleMutation = useMutation({
     mutationFn: async () => {
       if (!selectedRaffle || !affiliate) throw new Error('Dados incompletos');
-      
+
       // Validate CPF
       const cpfNumbers = playerData.cpf.replace(/\D/g, '');
       if (cpfNumbers.length !== 11) throw new Error('CPF inválido');
-      
+
       // Validate numbers
       if (selectedNumbers.length !== selectedRaffle.numbers_per_ticket) {
         throw new Error(`Selecione exatamente ${selectedRaffle.numbers_per_ticket} números`);
       }
 
-      // Hash CPF for storage (simple hash for demo - in production use bcrypt)
-      const cpfHash = btoa(cpfNumbers);
-      const cpfLast4 = cpfNumbers.slice(-4);
+      const data = await api.post<{ id: string }>('/affiliate-sale', {
+        companyId: affiliate.company_id,
+        affiliateId: affiliate.id,
+        raffleId: selectedRaffle.id,
+        cpf: cpfNumbers,
+        name: playerData.name,
+        phone: playerData.phone.replace(/\D/g, '') || null,
+        city: playerData.city || null,
+        password: playerData.password || undefined,
+        numbers: selectedNumbers,
+      });
 
-      // Check if player exists or create new
-      let playerId: string;
-      const { data: existingPlayer } = await (supabase as any)
-        .from('players')
-        .select('id')
-        .eq('company_id', affiliate.company_id)
-        .eq('cpf_hash', cpfHash)
-        .single();
-
-      if (existingPlayer) {
-        playerId = existingPlayer.id;
-      } else {
-        // Create new player
-        const passwordHash = btoa(playerData.password || cpfNumbers.slice(-4));
-        const { data: newPlayer, error: playerError } = await (supabase as any)
-          .from('players')
-          .insert({
-            company_id: affiliate.company_id,
-            cpf_hash: cpfHash,
-            cpf_last4: cpfLast4,
-            name: playerData.name,
-            phone: playerData.phone.replace(/\D/g, '') || null,
-            city: playerData.city || null,
-            password_hash: passwordHash,
-          })
-          .select('id')
-          .single();
-
-        if (playerError) throw playerError;
-        playerId = newPlayer.id;
-      }
-
-      // Create ticket
-      const { data: ticket, error: ticketError } = await (supabase as any)
-        .from('tickets')
-        .insert({
-          company_id: affiliate.company_id,
-          raffle_id: selectedRaffle.id,
-          player_id: playerId,
-          affiliate_id: affiliate.id,
-          status: 'pending_payment',
-        })
-        .select('id')
-        .single();
-
-      if (ticketError) throw ticketError;
-
-      // Insert ticket numbers
-      const ticketNumbers = selectedNumbers.map(num => ({
-        ticket_id: ticket.id,
-        number: num,
-      }));
-
-      const { error: numbersError } = await (supabase as any)
-        .from('ticket_numbers')
-        .insert(ticketNumbers);
-
-      if (numbersError) throw numbersError;
-
-      // Create pending payment
-      const { error: paymentError } = await (supabase as any)
-        .from('payments')
-        .insert({
-          company_id: affiliate.company_id,
-          raffle_id: selectedRaffle.id,
-          player_id: playerId,
-          ticket_id: ticket.id,
-          amount: selectedRaffle.ticket_price,
-          net_amount: selectedRaffle.ticket_price,
-          status: 'pending',
-        });
-
-      if (paymentError) throw paymentError;
-
-      return ticket;
+      return data;
     },
     onSuccess: () => {
       toast({
@@ -413,7 +339,7 @@ export default function NovaVenda() {
                 </div>
 
                 {/* Number Grid */}
-                <div className="grid grid-cols-10 gap-1 max-h-[300px] overflow-y-auto p-2 rounded-lg border">
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 max-h-[300px] overflow-y-auto p-2 rounded-lg border">
                   {Array.from(
                     { length: selectedRaffle.number_range_end - selectedRaffle.number_range_start + 1 },
                     (_, i) => selectedRaffle.number_range_start + i

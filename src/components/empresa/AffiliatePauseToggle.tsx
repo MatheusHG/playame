@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -40,16 +40,11 @@ export function AffiliatePauseToggle({
 
   const toggleMutation = useMutation({
     mutationFn: async (newState: boolean) => {
-      const { error } = await (supabase as any)
-        .from('affiliates')
-        .update({
-          is_sales_paused: newState,
-          paused_at: newState ? new Date().toISOString() : null,
-          paused_by: newState ? user?.id : null,
-        })
-        .eq('id', affiliateId);
-
-      if (error) throw error;
+      await api.patch(`/affiliates/${affiliateId}/pause`, {
+        is_sales_paused: newState,
+        paused_at: newState ? new Date().toISOString() : null,
+        paused_by: newState ? user?.id : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['affiliates'] });

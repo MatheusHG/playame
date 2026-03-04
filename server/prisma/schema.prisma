@@ -1,0 +1,579 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────
+
+enum company_status {
+  active
+  suspended
+  deleted
+}
+
+enum app_role {
+  SUPER_ADMIN
+  ADMIN_EMPRESA
+  COLABORADOR
+}
+
+enum affiliate_type {
+  manager
+  cambista
+}
+
+enum player_status {
+  active
+  blocked
+  deleted
+}
+
+enum raffle_status {
+  draft
+  active
+  paused
+  finished
+}
+
+enum prize_mode {
+  FIXED
+  FIXED_PLUS_PERCENT
+  PERCENT_ONLY
+}
+
+enum prize_type {
+  money
+  object
+}
+
+enum ticket_status {
+  pending_payment
+  active
+  winner
+  cancelled
+}
+
+enum payment_status {
+  pending
+  processing
+  succeeded
+  failed
+  refunded
+}
+
+enum payment_method {
+  manual
+  online
+}
+
+// ─── Models ──────────────────────────────────────────
+
+model users {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String   @unique
+  password_hash   String
+  email_confirmed Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @db.Timestamptz()
+
+  user_roles     user_roles[]
+  audit_logs     audit_logs[]
+  financial_logs financial_logs[]
+}
+
+model companies {
+  id                             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                           String
+  slug                           String          @unique
+  logo_url                       String?
+  primary_color                  String?         @default("#3B82F6")
+  secondary_color                String?         @default("#1E40AF")
+  stripe_secret_key_encrypted    String?
+  stripe_webhook_secret_encrypted String?
+  payments_enabled               Boolean?        @default(false)
+  payment_method                 payment_method  @default(manual)
+  admin_fee_percentage           Decimal?        @default(10.00) @db.Decimal(5, 2)
+  status                         company_status? @default(active)
+  footer_social_links            Json?           @default("[]")
+  footer_menus                   Json?           @default("[]")
+  community_url                  String?
+  community_name                 String?
+  general_regulations            String?
+  about_us                       String?
+  contact_info                   Json?           @default("{}")
+  deleted_at                     DateTime?       @db.Timestamptz()
+  created_at                     DateTime        @default(now()) @db.Timestamptz()
+  updated_at                     DateTime        @default(now()) @db.Timestamptz()
+
+  user_roles              user_roles[]
+  players                 players[]
+  raffles                 raffles[]
+  tickets                 tickets[]
+  payments                payments[]
+  audit_logs              audit_logs[]
+  financial_logs          financial_logs[]
+  webhook_logs            webhook_logs[]
+  affiliates              affiliates[]
+  affiliate_commissions   affiliate_commissions[]
+  commission_rate_changes commission_rate_changes[]
+  permission_profiles     permission_profiles[]
+  permission_audit_logs   permission_audit_logs[]
+  company_banners         company_banners[]
+  ticket_ranking          ticket_ranking[]
+}
+
+model user_roles {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  role       app_role
+  company_id String?  @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  user    users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  company companies? @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role, company_id])
+  @@index([user_id])
+  @@index([company_id])
+}
+
+model players {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id     String         @db.Uuid
+  cpf_hash       String
+  cpf_last4      String
+  cpf_encrypted  String?
+  name           String
+  city           String?
+  phone          String?
+  password_hash  String
+  status         player_status? @default(active)
+  blocked_at     DateTime?      @db.Timestamptz()
+  blocked_reason String?
+  deleted_at     DateTime?      @db.Timestamptz()
+  created_at     DateTime       @default(now()) @db.Timestamptz()
+  updated_at     DateTime       @default(now()) @db.Timestamptz()
+
+  company        companies       @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  tickets        tickets[]
+  payments       payments[]
+  ticket_ranking ticket_ranking[]
+  audit_logs     audit_logs[]
+
+  @@unique([company_id, cpf_hash])
+  @@index([company_id])
+  @@index([cpf_hash])
+}
+
+model raffles {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id             String         @db.Uuid
+  name                   String
+  description            String?
+  image_url              String?
+  ticket_price           Decimal        @db.Decimal(10, 2)
+  number_range_start     Int            @default(0)
+  number_range_end       Int            @default(99)
+  numbers_per_ticket     Int            @default(10)
+  status                 raffle_status? @default(draft)
+  prize_mode             prize_mode?    @default(PERCENT_ONLY)
+  fixed_prize_value      Decimal?       @default(0) @db.Decimal(12, 2)
+  prize_percent_of_sales Decimal?       @default(100) @db.Decimal(5, 2)
+  company_profit_percent Decimal        @default(0)
+  current_draw_count     Int?           @default(0)
+  rules_version          Int?           @default(1)
+  regulations            String?
+  scheduled_at           DateTime?      @db.Timestamptz()
+  finished_at            DateTime?      @db.Timestamptz()
+  deleted_at             DateTime?      @db.Timestamptz()
+  created_at             DateTime       @default(now()) @db.Timestamptz()
+  updated_at             DateTime       @default(now()) @db.Timestamptz()
+
+  company               companies              @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  prize_tiers           prize_tiers[]
+  draw_batches          draw_batches[]
+  draw_numbers          draw_numbers[]
+  tickets               tickets[]
+  payments              payments[]
+  affiliate_commissions affiliate_commissions[]
+  ticket_ranking        ticket_ranking[]
+  raffle_discounts      raffle_discounts[]
+
+  @@index([company_id])
+  @@index([status])
+}
+
+model prize_tiers {
+  id                              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raffle_id                       String     @db.Uuid
+  hits_required                   Int
+  prize_percentage                Decimal    @db.Decimal(5, 2)
+  prize_type                      prize_type? @default(money)
+  purchase_allowed_until_draw_count Int?
+  object_description              String?
+  created_at                      DateTime   @default(now()) @db.Timestamptz()
+  updated_at                      DateTime   @default(now()) @db.Timestamptz()
+
+  raffle raffles @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+
+  @@unique([raffle_id, hits_required])
+  @@index([raffle_id])
+}
+
+model draw_batches {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raffle_id    String    @db.Uuid
+  name         String?
+  draw_order   Int
+  finalized_at DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+
+  raffle       raffles        @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  draw_numbers draw_numbers[]
+
+  @@unique([raffle_id, draw_order])
+  @@index([raffle_id])
+}
+
+model draw_numbers {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  draw_batch_id String   @db.Uuid
+  raffle_id     String   @db.Uuid
+  number        Int
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  draw_batch draw_batches @relation(fields: [draw_batch_id], references: [id], onDelete: Cascade)
+  raffle     raffles      @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+
+  @@unique([raffle_id, number])
+  @@index([raffle_id])
+  @@index([draw_batch_id])
+}
+
+model tickets {
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raffle_id           String         @db.Uuid
+  player_id           String         @db.Uuid
+  company_id          String         @db.Uuid
+  affiliate_id        String?        @db.Uuid
+  status              ticket_status? @default(pending_payment)
+  purchased_at        DateTime?      @db.Timestamptz()
+  snapshot_data       Json?
+  eligible_prize_tiers String[]      @default([]) @db.Uuid
+  created_at          DateTime       @default(now()) @db.Timestamptz()
+  updated_at          DateTime       @default(now()) @db.Timestamptz()
+
+  raffle         raffles          @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  player         players          @relation(fields: [player_id], references: [id], onDelete: Cascade)
+  company        companies        @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  affiliate      affiliates?      @relation(fields: [affiliate_id], references: [id])
+  ticket_numbers ticket_numbers[]
+  payments       payments[]
+  ticket_ranking ticket_ranking?
+  affiliate_commissions affiliate_commissions[]
+
+  @@index([raffle_id])
+  @@index([player_id])
+  @@index([company_id])
+  @@index([status])
+  @@index([raffle_id, status])
+  @@index([affiliate_id])
+}
+
+model ticket_numbers {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id  String   @db.Uuid
+  number     Int
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  ticket tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+
+  @@unique([ticket_id, number])
+  @@index([ticket_id])
+}
+
+model ticket_ranking {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id          String    @unique @db.Uuid
+  raffle_id          String    @db.Uuid
+  player_id          String    @db.Uuid
+  company_id         String    @db.Uuid
+  hits               Int?      @default(0)
+  missing            Int
+  rank_position      Int?
+  last_calculated_at DateTime? @default(now()) @db.Timestamptz()
+
+  ticket  tickets   @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  raffle  raffles   @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  player  players   @relation(fields: [player_id], references: [id], onDelete: Cascade)
+  company companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([raffle_id])
+  @@index([company_id])
+  @@index([raffle_id, rank_position])
+  @@index([raffle_id, hits(sort: Desc), missing(sort: Asc)])
+}
+
+model payments {
+  id                         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id                  String          @db.Uuid
+  company_id                 String          @db.Uuid
+  player_id                  String          @db.Uuid
+  raffle_id                  String          @db.Uuid
+  amount                     Decimal         @db.Decimal(12, 2)
+  admin_fee                  Decimal?        @default(0) @db.Decimal(12, 2)
+  net_amount                 Decimal         @db.Decimal(12, 2)
+  original_amount            Decimal?        @db.Decimal(12, 2)
+  discount_percent           Decimal?        @default(0) @db.Decimal(5, 2)
+  discount_amount            Decimal?        @default(0) @db.Decimal(12, 2)
+  discount_rule_id           String?         @db.Uuid
+  company_retention          Decimal?        @default(0) @db.Decimal(12, 2)
+  prize_pool_contribution    Decimal?        @default(0) @db.Decimal(12, 2)
+  stripe_payment_intent_id   String?
+  stripe_checkout_session_id String?
+  status                     payment_status? @default(pending)
+  processed_at               DateTime?       @db.Timestamptz()
+  created_at                 DateTime        @default(now()) @db.Timestamptz()
+  updated_at                 DateTime        @default(now()) @db.Timestamptz()
+
+  ticket                tickets                 @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  company               companies               @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  player                players                 @relation(fields: [player_id], references: [id], onDelete: Cascade)
+  raffle                raffles                 @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  discount_rule         raffle_discounts?       @relation(fields: [discount_rule_id], references: [id])
+  affiliate_commissions affiliate_commissions[]
+
+  @@index([company_id])
+  @@index([player_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+model audit_logs {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id   String?  @db.Uuid
+  user_id      String?  @db.Uuid
+  player_id    String?  @db.Uuid
+  action       String
+  entity_type  String
+  entity_id    String?  @db.Uuid
+  changes_json Json?
+  ip_address   String?
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  company companies? @relation(fields: [company_id], references: [id], onDelete: SetNull)
+  user    users?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  player  players?   @relation(fields: [player_id], references: [id], onDelete: SetNull)
+
+  @@index([company_id])
+  @@index([user_id])
+  @@index([created_at(sort: Desc)])
+}
+
+model financial_logs {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id     String   @db.Uuid
+  user_id        String?  @db.Uuid
+  type           String
+  amount         Decimal  @db.Decimal(12, 2)
+  reference_id   String?  @db.Uuid
+  reference_type String?
+  description    String?
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  company companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user    users?    @relation(fields: [user_id], references: [id])
+
+  @@index([company_id])
+  @@index([created_at(sort: Desc)])
+  @@index([user_id])
+}
+
+model webhook_logs {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id        String?  @db.Uuid
+  event_type        String
+  event_id          String?
+  payload           Json     @default("{}")
+  status            String   @default("received")
+  error_message     String?
+  processing_time_ms Int?
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  company companies? @relation(fields: [company_id], references: [id], onDelete: Cascade)
+}
+
+model affiliates {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id            String         @db.Uuid
+  parent_affiliate_id   String?        @db.Uuid
+  user_id               String?        @db.Uuid
+  type                  affiliate_type
+  name                  String
+  phone                 String?
+  email                 String?
+  link_code             String         @unique
+  is_sales_paused       Boolean        @default(false)
+  paused_at             DateTime?      @db.Timestamptz()
+  paused_by             String?        @db.Uuid
+  commission_percent    Decimal        @default(0) @db.Decimal(5, 2)
+  is_active             Boolean        @default(true)
+  permission_profile_id String?        @db.Uuid
+  created_by            String?        @db.Uuid
+  created_at            DateTime       @default(now()) @db.Timestamptz()
+  updated_at            DateTime       @default(now()) @db.Timestamptz()
+  deleted_at            DateTime?      @db.Timestamptz()
+
+  company            companies            @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  parent             affiliates?          @relation("AffiliateHierarchy", fields: [parent_affiliate_id], references: [id], onDelete: SetNull)
+  children           affiliates[]         @relation("AffiliateHierarchy")
+  permission_profile permission_profiles? @relation(fields: [permission_profile_id], references: [id])
+  tickets            tickets[]
+  manager_commissions  affiliate_commissions[] @relation("ManagerCommissions")
+  cambista_commissions affiliate_commissions[] @relation("CambistaCommissions")
+
+  @@index([company_id])
+  @@index([parent_affiliate_id])
+  @@index([type])
+}
+
+model affiliate_commissions {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id               String   @db.Uuid
+  ticket_id                String   @db.Uuid
+  company_id               String   @db.Uuid
+  raffle_id                String   @db.Uuid
+  sale_amount              Decimal  @db.Decimal(12, 2)
+  super_admin_percent      Decimal  @db.Decimal(5, 2)
+  super_admin_amount       Decimal  @db.Decimal(12, 2)
+  company_net_amount       Decimal  @db.Decimal(12, 2)
+  manager_id               String?  @db.Uuid
+  manager_percent          Decimal? @db.Decimal(5, 2)
+  manager_gross_amount     Decimal? @db.Decimal(12, 2)
+  cambista_id              String?  @db.Uuid
+  cambista_percent         Decimal? @map("cambista_percent_of_manager") @db.Decimal(5, 2)
+  cambista_amount          Decimal? @db.Decimal(12, 2)
+  manager_net_amount       Decimal? @db.Decimal(12, 2)
+  company_profit_percent   Decimal? @db.Decimal(5, 2)
+  company_retention_amount Decimal? @default(0) @db.Decimal(12, 2)
+  prize_pool_contribution  Decimal? @default(0) @db.Decimal(12, 2)
+  rates_snapshot           Json
+  created_at               DateTime @default(now()) @db.Timestamptz()
+
+  payment  payments   @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  ticket   tickets    @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  company  companies  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  raffle   raffles    @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  manager  affiliates? @relation("ManagerCommissions", fields: [manager_id], references: [id])
+  cambista affiliates? @relation("CambistaCommissions", fields: [cambista_id], references: [id])
+
+  @@index([payment_id])
+  @@index([company_id])
+  @@index([manager_id])
+  @@index([cambista_id])
+}
+
+model commission_rate_changes {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entity_type   String
+  entity_id     String   @db.Uuid
+  field_changed String
+  old_value     Decimal? @db.Decimal(5, 2)
+  new_value     Decimal? @db.Decimal(5, 2)
+  changed_by    String?  @db.Uuid
+  company_id    String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  company companies? @relation(fields: [company_id], references: [id])
+
+  @@index([entity_type, entity_id])
+}
+
+model permission_profiles {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id     String         @db.Uuid
+  name           String
+  description    String?
+  affiliate_type affiliate_type
+  permissions    Json           @default("{}")
+  is_default     Boolean        @default(false)
+  created_at     DateTime       @default(now()) @db.Timestamptz()
+  updated_at     DateTime       @default(now()) @db.Timestamptz()
+
+  company    companies    @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  affiliates affiliates[]
+
+  @@unique([company_id, name])
+}
+
+model permission_audit_logs {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id  String   @db.Uuid
+  changed_by  String?  @db.Uuid
+  target_type String
+  target_id   String   @db.Uuid
+  action      String
+  old_value   Json?
+  new_value   Json?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  company companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+}
+
+model platform_settings {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key        String   @unique
+  value      Json
+  updated_by String?  @db.Uuid
+  updated_at DateTime @default(now()) @db.Timestamptz()
+  created_at DateTime @default(now()) @db.Timestamptz()
+}
+
+model rate_limits {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier       String
+  action           String
+  attempts         Int?      @default(1)
+  first_attempt_at DateTime? @default(now()) @db.Timestamptz()
+  last_attempt_at  DateTime? @default(now()) @db.Timestamptz()
+  blocked_until    DateTime? @db.Timestamptz()
+
+  @@unique([identifier, action])
+  @@index([last_attempt_at])
+}
+
+model company_banners {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id    String   @db.Uuid
+  image_url     String
+  redirect_url  String?
+  display_order Int      @default(0)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @db.Timestamptz()
+
+  company companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+}
+
+model raffle_discounts {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raffle_id        String    @db.Uuid
+  min_quantity     Int
+  discount_percent Decimal   @db.Decimal(5, 2)
+  is_active        Boolean   @default(true)
+  starts_at        DateTime? @db.Timestamptz()
+  ends_at          DateTime? @db.Timestamptz()
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+  updated_at       DateTime  @default(now()) @db.Timestamptz()
+
+  raffle   raffles    @relation(fields: [raffle_id], references: [id], onDelete: Cascade)
+  payments payments[]
+
+  @@unique([raffle_id, min_quantity])
+  @@index([raffle_id])
+  @@index([is_active])
+}

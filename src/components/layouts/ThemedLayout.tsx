@@ -6,6 +6,8 @@ import { LoadingState } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { PlayerAccountMenu } from '@/components/public/PlayerAccountMenu';
+import { PublicFooter } from '@/components/public/PublicFooter';
+import { CommunityChannelBanner } from '@/components/public/CommunityChannelBanner';
 
 interface ThemedLayoutProps {
   children: ReactNode;
@@ -35,7 +37,7 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
   }
 
   return (
-    <div 
+    <div
       className={cn('min-h-screen bg-background', className)}
       style={{
         '--company-primary': company?.primary_color ?? 'hsl(var(--primary))',
@@ -47,13 +49,13 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
             <Link to={`/empresa/${slug}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               {company.logo_url ? (
-                <img 
-                  src={company.logo_url} 
+                <img
+                  src={company.logo_url}
                   alt={company.name}
                   className="h-8 w-auto object-contain"
                 />
               ) : (
-                <div 
+                <div
                   className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold"
                   style={{ backgroundColor: company.primary_color }}
                 >
@@ -70,8 +72,20 @@ export function ThemedLayout({ children, showHeader = true, className }: ThemedL
           </div>
         </header>
       )}
-      
+
+      {isAuthenticated && company?.community_url && company?.community_name && slug && (
+        <CommunityChannelBanner
+          communityName={company.community_name}
+          communityUrl={company.community_url}
+          companySlug={slug}
+          primaryColor={company.primary_color}
+        />
+      )}
+
       <main>{children}</main>
+
+      {/* Footer */}
+      {showHeader && <PublicFooter />}
     </div>
   );
 }

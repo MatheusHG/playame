@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AffiliateLayout } from '@/components/layouts/AffiliateLayout';
 import { useAffiliate } from '@/contexts/AffiliateContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,22 +44,7 @@ export default function Comissoes() {
   const { data: commissions, isLoading } = useQuery({
     queryKey: ['affiliate-commissions', affiliate?.id],
     queryFn: async () => {
-      const isManager = affiliate?.type === 'manager';
-      const column = isManager ? 'manager_id' : 'cambista_id';
-
-      const { data, error } = await (supabase as any)
-        .from('affiliate_commissions')
-        .select(`
-          *,
-          ticket:tickets(id),
-          raffle:raffles(id, name),
-          payment:payments(id, status, amount, processed_at)
-        `)
-        .eq(column, affiliate?.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
+      const data = await api.get<any[]>(`/affiliates/${affiliate?.id}/commissions`);
       return data;
     },
     enabled: !!affiliate?.id && hasPermission('can_view_own_commissions'),
@@ -126,7 +111,7 @@ export default function Comissoes() {
     <AffiliateLayout title="Comissões" description="Acompanhe suas comissões por vendas">
       <div className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -186,9 +171,9 @@ export default function Comissoes() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {isManager 
-                ? 'Você recebe comissão sobre o valor total de cada venda realizada por você e sua equipe.'
-                : 'Você recebe comissão sobre a comissão do seu gerente para cada venda realizada.'
+              {isManager
+                ? 'Você recebe comissão sobre o valor da cartela de cada venda realizada por você e sua equipe.'
+                : 'Você recebe comissão sobre o valor da cartela para cada venda realizada.'
               }
             </p>
           </CardContent>
@@ -202,7 +187,7 @@ export default function Comissoes() {
               Apenas comissões com pagamento aprovado
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

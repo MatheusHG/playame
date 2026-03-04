@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { DataTable, Column } from '@/components/shared/DataTable';
@@ -8,18 +8,22 @@ import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
 import { ManualPaymentApproval } from '@/components/empresa/ManualPaymentApproval';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Building2, Percent, CircleDollarSign, ArrowUpCircle, User } from 'lucide-react';
+import { DollarSign, TrendingUp, Building2, Percent, CircleDollarSign, ArrowUpCircle, User, Store, Globe } from 'lucide-react';
 import { Payment } from '@/types/database.types';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Database } from '@/integrations/supabase/types';
+import type { FinancialLog as FinancialLogBase } from '@/types/database.types';
 
 interface PaymentWithCompany extends Payment {
   company_name?: string;
+  raffle_name?: string;
+  player_name?: string;
+  is_street_sale?: boolean;
+  seller_email?: string;
 }
 
-type FinancialLog = Database['public']['Tables']['financial_logs']['Row'] & {
+type FinancialLog = FinancialLogBase & {
   company_name?: string;
 };
 
@@ -31,68 +35,30 @@ export default function SuperAdminFinanceiro() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['financial-stats', startDate, endDate],
     queryFn: async () => {
-      let query = supabase
-        .from('payments')
-        .select('amount, admin_fee, status, created_at');
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
+      const data = await api.get<{
+        totalRevenue: number;
+        totalFees: number;
+        totalNet: number;
+        transactionCount: number;
+      }>('/admin/financial-stats', params);
 
-      const { data: payments } = await query;
-
-      const succeeded = payments?.filter(p => p.status === 'succeeded') || [];
-      const totalRevenue = succeeded.reduce((sum, p) => sum + Number(p.amount), 0);
-      const totalFees = succeeded.reduce((sum, p) => sum + Number(p.admin_fee), 0);
-      const totalNet = totalRevenue - totalFees;
-
-      return {
-        totalRevenue,
-        totalFees,
-        totalNet,
-        transactionCount: succeeded.length,
-      };
+      return data;
     },
   });
 
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ['payments-list', startDate, endDate],
     queryFn: async () => {
-      let query = supabase
-        .from('payments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Fetch company names
-      const companyIds = [...new Set(data.map(p => p.company_id))];
-      const { data: companies } = await supabase
-        .from('companies')
-        .select('id, name')
-        .in('id', companyIds);
-
-      const companiesMap = (companies || []).reduce((acc, c) => {
-        acc[c.id] = c.name;
-        return acc;
-      }, {} as Record<string, string>);
-
-      return data.map(payment => ({
-        ...payment,
-        company_name: companiesMap[payment.company_id],
-      })) as PaymentWithCompany[];
+      const data = await api.get<PaymentWithCompany[]>('/admin/payments', params);
+      return data;
     },
   });
 
@@ -100,38 +66,12 @@ export default function SuperAdminFinanceiro() {
   const { data: financialLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['financial-logs-all', startDate, endDate],
     queryFn: async () => {
-      let query = supabase
-        .from('financial_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Fetch company names
-      const companyIds = [...new Set((data || []).map(l => l.company_id))];
-      const { data: companies } = await supabase
-        .from('companies')
-        .select('id, name')
-        .in('id', companyIds);
-
-      const companiesMap = (companies || []).reduce((acc, c) => {
-        acc[c.id] = c.name;
-        return acc;
-      }, {} as Record<string, string>);
-
-      return (data || []).map(log => ({
-        ...log,
-        company_name: companiesMap[log.company_id],
-      })) as FinancialLog[];
+      const data = await api.get<FinancialLog[]>('/financial-logs', params);
+      return data;
     },
   });
 
@@ -152,8 +92,43 @@ export default function SuperAdminFinanceiro() {
       ),
     },
     {
+      key: 'id',
+      header: 'Ref',
+      render: (item) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {item.id.slice(0, 8).toUpperCase()}
+        </span>
+      ),
+    },
+    {
       key: 'company_name',
       header: 'Empresa',
+    },
+    {
+      key: 'is_street_sale',
+      header: 'Tipo',
+      render: (item) => (
+        <Badge variant={item.is_street_sale ? 'secondary' : 'outline'} className="gap-1 text-xs">
+          {item.is_street_sale ? (
+            <><Store className="h-3 w-3" /> Rua</>
+          ) : (
+            <><Globe className="h-3 w-3" /> Online</>
+          )}
+        </Badge>
+      ),
+    },
+    {
+      key: 'seller_email',
+      header: 'Vendedor',
+      render: (item) => {
+        if (item.is_street_sale && item.seller_email) {
+          return <span className="text-xs">{item.seller_email}</span>;
+        }
+        if (item.player_name) {
+          return <span className="text-xs text-muted-foreground">{item.player_name}</span>;
+        }
+        return <span className="text-xs text-muted-foreground">-</span>;
+      },
     },
     {
       key: 'amount',

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import { EmpresaLayout } from '@/components/layouts/EmpresaLayout';
 import { LoadingState } from '@/components/shared/LoadingState';
@@ -12,7 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
 import { ManualPaymentApproval } from '@/components/empresa/ManualPaymentApproval';
-import { DollarSign, TrendingUp, Receipt, ArrowUpCircle, CircleDollarSign, User, Eye, MoreVertical, CheckCircle, XCircle, Users, FileText } from 'lucide-react';
+import { DollarSign, TrendingUp, Receipt, ArrowUpCircle, CircleDollarSign, User, Eye, MoreVertical, CheckCircle, XCircle, Users, FileText, Trophy, ShoppingCart, Info } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,22 +30,53 @@ import {
 } from '@/components/ui/dialog';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Database } from '@/integrations/supabase/types';
+import type { Payment, FinancialLog as FinancialLogBase } from '@/types/database.types';
+import type { AffiliateCommission } from '@/types/affiliate.types';
 import { getDisplayCpf } from '@/lib/utils';
 
-type Payment = Database['public']['Tables']['payments']['Row'];
 type PaymentWithPlayer = Payment & {
   player: { id: string; name: string; cpf_last4: string } | null;
 };
-type AffiliateCommissionRow = Database['public']['Tables']['affiliate_commissions']['Row'] & {
+type AffiliateCommissionRow = AffiliateCommission & {
   manager?: { id: string; name: string } | null;
   cambista?: { id: string; name: string } | null;
 };
-type FinancialLog = Database['public']['Tables']['financial_logs']['Row'] & {
+type FinancialLog = FinancialLogBase & {
   user_email?: string;
 };
 
 const formatBrl = (v: number) => `R$ ${Number(v).toFixed(2)}`;
+
+/* ── Stat Item ── */
+interface StatItemProps { icon: LucideIcon; iconBg: string; iconColor: string; label: string; value: string | number; subtitle?: string; tooltip?: string; }
+function StatItem({ icon: Icon, iconBg, iconColor, label, value, subtitle, tooltip }: StatItemProps) {
+  return (
+    <div className="rounded-2xl border bg-card p-3 sm:p-5 flex items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow">
+      <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full flex-shrink-0" style={{ backgroundColor: iconBg }}>
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: iconColor }} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+          {tooltip && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help flex-shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        <p className="text-lg sm:text-2xl font-bold tracking-tight mt-0.5">{value}</p>
+        {subtitle && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function EmpresaFinanceiro() {
   const { slug } = useParams<{ slug: string }>();
@@ -68,26 +101,12 @@ export default function EmpresaFinanceiro() {
     queryKey: ['company-payments', company?.id, startDate, endDate],
     enabled: !!company?.id,
     queryFn: async () => {
-      let query = supabase
-        .from('payments')
-        .select(`
-          *,
-          player:players(id, name, cpf_encrypted, cpf_last4)
-        `)
-        .eq('company_id', company!.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as PaymentWithPlayer[];
+      const data = await api.get<PaymentWithPlayer[]>(`/payments/company/${company!.id}`, params);
+      return data;
     },
   });
 
@@ -96,27 +115,12 @@ export default function EmpresaFinanceiro() {
     queryKey: ['company-affiliate-commissions', company?.id, startDate, endDate],
     enabled: !!company?.id,
     queryFn: async () => {
-      let query = supabase
-        .from('affiliate_commissions')
-        .select(`
-          *,
-          manager:affiliates!affiliate_commissions_manager_id_fkey(id, name),
-          cambista:affiliates!affiliate_commissions_cambista_id_fkey(id, name)
-        `)
-        .eq('company_id', company!.id)
-        .order('created_at', { ascending: false })
-        .limit(200);
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as AffiliateCommissionRow[];
+      const data = await api.get<AffiliateCommissionRow[]>(`/commissions/company/${company!.id}`, params);
+      return data;
     },
   });
 
@@ -131,37 +135,12 @@ export default function EmpresaFinanceiro() {
     queryKey: ['company-financial-logs', company?.id, startDate, endDate],
     enabled: !!company?.id,
     queryFn: async () => {
-      let query = supabase
-        .from('financial_logs')
-        .select('*')
-        .eq('company_id', company!.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const params: Record<string, string> = {};
+      if (startDate) params.from = startOfDay(startDate).toISOString();
+      if (endDate) params.to = endOfDay(endDate).toISOString();
 
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Fetch user emails for logs that have user_id
-      const userIds = [...new Set((data || []).map(log => log.user_id).filter(Boolean))];
-      let usersMap: Record<string, string> = {};
-      
-      if (userIds.length > 0) {
-        // We need to use auth.users but we can't directly query it
-        // Instead, we'll show user_id abbreviated or fetch from audit_logs
-        // For now, just show user_id if available
-      }
-
-      return (data || []).map(log => ({
-        ...log,
-        user_email: log.user_id ? `Usuário ${log.user_id.slice(0, 8)}...` : undefined,
-      })) as FinancialLog[];
+      const data = await api.get<FinancialLog[]>(`/financial-logs/company/${company!.id}`, params);
+      return data;
     },
   });
 
@@ -174,6 +153,8 @@ export default function EmpresaFinanceiro() {
   const totalSales = succeededPayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalFees = succeededPayments.reduce((sum, p) => sum + Number(p.admin_fee || 0), 0);
   const netRevenue = succeededPayments.reduce((sum, p) => sum + Number(p.net_amount), 0);
+  const totalRetention = succeededPayments.reduce((sum, p) => sum + Number((p as any).company_retention || 0), 0);
+  const totalPrizePool = succeededPayments.reduce((sum, p) => sum + Number((p as any).prize_pool_contribution || 0), 0);
 
   const handleClearFilters = () => {
     setStartDate(undefined);
@@ -181,6 +162,13 @@ export default function EmpresaFinanceiro() {
   };
 
   const paymentColumns: Column<PaymentWithPlayer>[] = [
+    {
+      key: 'ref',
+      header: 'Ref',
+      render: (p) => (
+        <span className="font-mono text-xs text-muted-foreground">{p.id.slice(0, 8).toUpperCase()}</span>
+      ),
+    },
     {
       key: 'created_at',
       header: 'Data',
@@ -399,7 +387,7 @@ export default function EmpresaFinanceiro() {
   return (
     <EmpresaLayout title="Financeiro" description="Relatórios financeiros da empresa">
       {/* Date Filter */}
-      <div className="mb-6">
+      <div className="rounded-2xl border bg-card p-4 mb-6">
         <DateRangeFilter
           startDate={startDate}
           endDate={endDate}
@@ -410,82 +398,103 @@ export default function EmpresaFinanceiro() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Total de Vendas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">R$ {totalSales.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">{succeededPayments.length} pagamentos</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-              Taxa Administrativa
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-muted-foreground">R$ {totalFees.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">
-              {company?.admin_fee_percentage}% por venda
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Receita Líquida
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-primary">R$ {netRevenue.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">Disponível para premiação</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6">
+        <StatItem
+          icon={DollarSign}
+          iconBg="#DBEAFE"
+          iconColor="#2563EB"
+          label="Total de Vendas"
+          value={`R$ ${totalSales.toFixed(2)}`}
+          subtitle={`${succeededPayments.length} pagamentos`}
+        />
+        <StatItem
+          icon={Receipt}
+          iconBg="#F3F4F6"
+          iconColor="#6B7280"
+          label="Taxa Administrativa"
+          value={`R$ ${totalFees.toFixed(2)}`}
+          subtitle={`${company?.admin_fee_percentage}% por venda`}
+        />
+        <StatItem
+          icon={TrendingUp}
+          iconBg="#EDE9FE"
+          iconColor="#7C3AED"
+          label="Receita Líquida"
+          value={`R$ ${netRevenue.toFixed(2)}`}
+          subtitle="Após taxa administrativa"
+        />
+        <StatItem
+          icon={CircleDollarSign}
+          iconBg="#FEF3C7"
+          iconColor="#D97706"
+          label="Retenção Empresa"
+          value={`R$ ${totalRetention.toFixed(2)}`}
+          subtitle="Lucro retido"
+        />
+        <StatItem
+          icon={Trophy}
+          iconBg="#DCFCE7"
+          iconColor="#16A34A"
+          label="Contribuição Prêmio"
+          value={`R$ ${totalPrizePool.toFixed(2)}`}
+          subtitle="Acumulado para premiação"
+        />
+        <StatItem
+          icon={ShoppingCart}
+          iconBg="#FCE7F3"
+          iconColor="#DB2777"
+          label="Ticket Médio"
+          value={succeededPayments.length > 0 ? `R$ ${(totalSales / succeededPayments.length).toFixed(2)}` : 'R$ 0,00'}
+          subtitle={`${succeededPayments.length} vendas`}
+          tooltip="Calculado com base no valor bruto, sem descontos e taxas."
+        />
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="pagamentos" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="pagamentos" className="gap-2">
-            <CircleDollarSign className="h-4 w-4" />
-            Pagamentos
-          </TabsTrigger>
-          <TabsTrigger value="movimentacoes" className="gap-2">
-            <ArrowUpCircle className="h-4 w-4" />
-            Movimentações
-          </TabsTrigger>
-        </TabsList>
+      <div className="rounded-2xl border bg-card overflow-hidden">
+        <Tabs defaultValue="pagamentos" className="w-full">
+          <div className="border-b bg-muted/30 px-5 pt-4">
+            <TabsList className="bg-transparent h-auto p-0 gap-1">
+              <TabsTrigger
+                value="pagamentos"
+                className="rounded-t-xl rounded-b-none border border-b-0 data-[state=active]:bg-card data-[state=active]:shadow-none px-4 py-2.5 text-sm gap-2"
+              >
+                <CircleDollarSign className="h-4 w-4" />
+                Pagamentos
+              </TabsTrigger>
+              <TabsTrigger
+                value="movimentacoes"
+                className="rounded-t-xl rounded-b-none border border-b-0 data-[state=active]:bg-card data-[state=active]:shadow-none px-4 py-2.5 text-sm gap-2"
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                Movimentações
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="pagamentos">
-          <DataTable
-            data={payments}
-            columns={paymentColumns}
-            loading={loadingPayments}
-            searchPlaceholder="Buscar pagamentos..."
-            emptyMessage="Nenhum pagamento registrado"
-          />
-        </TabsContent>
+          <div className="p-5">
+            <TabsContent value="pagamentos" className="mt-0">
+              <DataTable
+                data={payments}
+                columns={paymentColumns}
+                loading={loadingPayments}
+                searchPlaceholder="Buscar pagamentos..."
+                emptyMessage="Nenhum pagamento registrado"
+              />
+            </TabsContent>
 
-        <TabsContent value="movimentacoes">
-          <DataTable
-            data={financialLogs}
-            columns={logColumns}
-            loading={loadingLogs}
-            searchPlaceholder="Buscar movimentações..."
-            emptyMessage="Nenhuma movimentação registrada"
-          />
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="movimentacoes" className="mt-0">
+              <DataTable
+                data={financialLogs}
+                columns={logColumns}
+                loading={loadingLogs}
+                searchPlaceholder="Buscar movimentações..."
+                emptyMessage="Nenhuma movimentação registrada"
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
 
       {/* Modal Descritivo (invoice) do pagamento */}
       <Dialog open={!!invoiceModalPayment} onOpenChange={(open) => !open && setInvoiceModalPayment(null)}>
@@ -501,6 +510,10 @@ export default function EmpresaFinanceiro() {
             return (
               <div className="space-y-3 text-sm">
                 <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <span className="text-muted-foreground">Ref</span>
+                    <span className="font-mono font-medium text-xs">{invoiceModalPayment.id.slice(0, 8).toUpperCase()}</span>
+                  </div>
                   <div className="flex justify-between items-start">
                     <span className="text-muted-foreground">Valor pago pelo jogador</span>
                     <span className="font-mono font-medium">{formatBrl(amount)}</span>
@@ -528,16 +541,30 @@ export default function EmpresaFinanceiro() {
                       <span>(-) Comissão cambista{comm.cambista?.name ? ` (${comm.cambista.name})` : ''}</span>
                       <div className="text-right">
                         <div className="font-mono">-{formatBrl(Number(comm.cambista_amount))}</div>
-                        {comm.cambista_percent_of_manager != null && (
-                          <div className="text-[10px] opacity-80 font-mono">{Number(comm.cambista_percent_of_manager).toFixed(1)}% do gerente</div>
+                        {(comm.cambista_percent_of_manager != null || (comm as any).cambista_percent != null) && (
+                          <div className="text-[10px] opacity-80 font-mono">{Number((comm as any).cambista_percent ?? comm.cambista_percent_of_manager).toFixed(1)}% da cartela</div>
                         )}
                       </div>
                     </div>
                   )}
-                  <div className="flex justify-between items-start pt-2 border-t font-medium text-primary">
-                    <span>Valor líquido (empresa)</span>
+                  <div className="flex justify-between items-start pt-2 border-t font-medium">
+                    <span>Líquido empresa (após taxa e afiliados)</span>
                     <span className="font-mono">{formatBrl(Number(invoiceModalPayment.net_amount))}</span>
                   </div>
+
+                  {/* Company retention & prize pool */}
+                  {comm && Number((comm as any).company_retention_amount || 0) > 0 && (
+                    <div className="flex justify-between items-start text-orange-600 dark:text-orange-400">
+                      <span>Retenção empresa ({Number((comm as any).company_profit_percent || 0).toFixed(1)}%)</span>
+                      <span className="font-mono font-medium">{formatBrl(Number((comm as any).company_retention_amount))}</span>
+                    </div>
+                  )}
+                  {comm && Number((comm as any).prize_pool_contribution || 0) > 0 && (
+                    <div className="flex justify-between items-start text-green-600 dark:text-green-400">
+                      <span>Contribuição ao prêmio</span>
+                      <span className="font-mono font-medium">{formatBrl(Number((comm as any).prize_pool_contribution))}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
