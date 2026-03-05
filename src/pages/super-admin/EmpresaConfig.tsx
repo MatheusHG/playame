@@ -27,6 +27,7 @@ export default function SuperAdminEmpresaConfig() {
     slug: '',
     custom_domain: null as string | null,
     logo_url: '',
+    favicon_url: '',
     primary_color: '#3B82F6',
     secondary_color: '#1E40AF',
     admin_fee_percentage: 10,
@@ -49,6 +50,7 @@ export default function SuperAdminEmpresaConfig() {
         slug: company.slug,
         custom_domain: company.custom_domain || null,
         logo_url: company.logo_url || '',
+        favicon_url: company.favicon_url || '',
         primary_color: company.primary_color,
         secondary_color: company.secondary_color,
         admin_fee_percentage: company.admin_fee_percentage,
@@ -81,6 +83,7 @@ export default function SuperAdminEmpresaConfig() {
     updateMutation.mutate({
       ...formData,
       logo_url: formData.logo_url || null,
+      favicon_url: formData.favicon_url || null,
     });
   };
 
@@ -210,6 +213,18 @@ export default function SuperAdminEmpresaConfig() {
                   onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                   placeholder="https://exemplo.com/logo.png"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="favicon_url">URL do Favicon</Label>
+                <Input
+                  id="favicon_url"
+                  value={formData.favicon_url}
+                  onChange={(e) => setFormData({ ...formData, favicon_url: e.target.value })}
+                  placeholder="https://exemplo.com/favicon.ico"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ícone exibido na aba do navegador. Se não informado, usa o logo.
+                </p>
               </div>
             </CardContent>
           </Card>

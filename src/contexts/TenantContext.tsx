@@ -99,14 +99,31 @@ export function useCompanyBranding() {
     if (company) {
       document.documentElement.style.setProperty('--company-primary', company.primary_color);
       document.documentElement.style.setProperty('--company-secondary', company.secondary_color);
+
+      // Dynamic page title
+      document.title = company.name;
+
+      // Dynamic favicon: prefer favicon_url, fallback to logo_url
+      const faviconHref = company.favicon_url || company.logo_url;
+      if (faviconHref) {
+        let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = faviconHref;
+      }
     } else {
       document.documentElement.style.removeProperty('--company-primary');
       document.documentElement.style.removeProperty('--company-secondary');
+      document.title = 'PlayAME';
     }
 
     return () => {
       document.documentElement.style.removeProperty('--company-primary');
       document.documentElement.style.removeProperty('--company-secondary');
+      document.title = 'PlayAME';
     };
   }, [company]);
 

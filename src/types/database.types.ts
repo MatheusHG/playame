@@ -18,6 +18,7 @@ export interface Company {
   slug: string;
   custom_domain: string | null;
   logo_url: string | null;
+  favicon_url?: string | null;
   primary_color: string;
   secondary_color: string;
   stripe_secret_key_encrypted: string | null;

@@ -6,7 +6,7 @@ import { invalidateTenantCache } from '../middleware/tenantResolver.js';
 
 // UUID v4 regex check
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COMPANY_FIELDS = ['name', 'slug', 'custom_domain', 'logo_url', 'primary_color', 'secondary_color', 'payment_method', 'admin_fee_percentage', 'status', 'payments_enabled', 'community_url', 'community_name'];
+const COMPANY_FIELDS = ['name', 'slug', 'custom_domain', 'logo_url', 'favicon_url', 'primary_color', 'secondary_color', 'payment_method', 'admin_fee_percentage', 'status', 'payments_enabled', 'community_url', 'community_name'];
 
 export async function getByIdentifier(identifier: string) {
   const isUuid = UUID_REGEX.test(identifier);
@@ -36,6 +36,7 @@ export async function create(data: {
   slug: string;
   custom_domain?: string;
   logo_url?: string;
+  favicon_url?: string;
   primary_color?: string;
   secondary_color?: string;
   payment_method?: 'manual' | 'online';
@@ -69,6 +70,7 @@ export async function create(data: {
       slug: data.slug,
       custom_domain: data.custom_domain || null,
       logo_url: data.logo_url || null,
+      favicon_url: data.favicon_url || null,
       primary_color: data.primary_color || '#3B82F6',
       secondary_color: data.secondary_color || '#1E40AF',
       payment_method: data.payment_method || 'manual',
@@ -96,6 +98,7 @@ export async function update(
     slug?: string;
     custom_domain?: string | null;
     logo_url?: string;
+    favicon_url?: string | null;
     primary_color?: string;
     secondary_color?: string;
     payments_enabled?: boolean;

@@ -36,6 +36,7 @@ async function findTenantByDomain(domain: string): Promise<TenantInfo | null> {
       slug: true,
       custom_domain: true,
       logo_url: true,
+      favicon_url: true,
       primary_color: true,
       secondary_color: true,
       status: true,
@@ -92,7 +93,7 @@ export function tenantResolver() {
             where: { id: tenantIdHeader, deleted_at: null },
             select: {
               id: true, name: true, slug: true, custom_domain: true,
-              logo_url: true, primary_color: true, secondary_color: true, status: true,
+              logo_url: true, favicon_url: true, primary_color: true, secondary_color: true, status: true,
             },
           });
           if (company) {
@@ -118,7 +119,7 @@ export function tenantResolver() {
             where: { id: tenantIdHeader, deleted_at: null },
             select: {
               id: true, name: true, slug: true, custom_domain: true,
-              logo_url: true, primary_color: true, secondary_color: true, status: true,
+              logo_url: true, favicon_url: true, primary_color: true, secondary_color: true, status: true,
             },
           });
           if (company) {

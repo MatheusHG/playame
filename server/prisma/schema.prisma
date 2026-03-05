@@ -91,6 +91,7 @@ model companies {
   slug                           String          @unique
   custom_domain                  String?         @unique
   logo_url                       String?
+  favicon_url                    String?
   primary_color                  String?         @default("#3B82F6")
   secondary_color                String?         @default("#1E40AF")
   stripe_secret_key_encrypted    String?
