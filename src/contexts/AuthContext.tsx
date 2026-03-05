@@ -89,9 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoles(mappedRoles);
       setAffiliateInfo(affInfo);
 
-      return { error: null, roles: mappedRoles, affiliateInfo: affInfo };
+      return { error: null as Error | null, roles: mappedRoles, affiliateInfo: affInfo };
     } catch (err) {
-      return { error: err instanceof Error ? err : new Error('Login failed'), roles: [] as UserRole[], affiliateInfo: null };
+      return { error: err instanceof Error ? err : new Error('Login failed'), roles: [] as UserRole[], affiliateInfo: null as AffiliateInfo | null };
     }
   };
 

@@ -87,27 +87,45 @@ export default function Auth() {
     return true;
   };
 
+  const getRedirectPath = (loginRoles: typeof roles, affInfo: typeof affiliateInfo): string => {
+    const hasSuperAdmin = loginRoles.some(r => r.role === 'SUPER_ADMIN');
+
+    if (hasSuperAdmin) {
+      return from && from.startsWith('/super-admin') ? from : '/super-admin/dashboard';
+    }
+    if (affInfo) {
+      return '/afiliado/dashboard';
+    }
+    if (from && from !== '/' && !from.startsWith('/auth')) {
+      return from;
+    }
+    const companyRole = loginRoles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
+    if (companyRole && companyRole.company_id) {
+      return '/admin/dashboard';
+    }
+    return '/';
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
-    const { error } = await signIn(email, password);
+    const result = await signIn(email, password);
     setIsLoading(false);
 
-    if (error) {
+    if (result.error) {
       toast({
         variant: 'destructive',
         title: 'Erro ao fazer login',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email ou senha incorretos' 
-          : error.message,
+        description: result.error.message === 'Invalid login credentials'
+          ? 'Email ou senha incorretos'
+          : result.error.message,
       });
     } else {
-      toast({
-        title: 'Bem-vindo!',
-        description: 'Login realizado com sucesso.',
-      });
+      // Use window.location for reliable redirect in production
+      const target = getRedirectPath(result.roles, result.affiliateInfo);
+      window.location.href = target;
     }
   };
 
