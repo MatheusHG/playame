@@ -102,8 +102,32 @@ export default function Auth() {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      // Redirect immediately using the returned data (don't wait for useEffect)
-      redirectByRole(result.roles, result.affiliateInfo);
+      // Redirect immediately using fresh profile data.
+      // This avoids depending on asynchronous context propagation after login.
+      try {
+        const me = await api.get<any>('/auth/me');
+        const mappedRoles = Array.isArray(me?.roles)
+          ? me.roles.map((r: any) => ({
+              id: '',
+              user_id: '',
+              role: r.role,
+              company_id: r.companyId ?? r.company_id ?? null,
+              created_at: '',
+            }))
+          : roles;
+
+        const mappedAffiliateInfo = me?.affiliate?.company?.slug
+          ? {
+              id: me.affiliate.id,
+              companySlug: me.affiliate.company.slug,
+              type: me.affiliate.type,
+            }
+          : affiliateInfo;
+
+        redirectByRole(mappedRoles, mappedAffiliateInfo);
+      } catch {
+        redirectByRole(roles, affiliateInfo);
+      }
     }
   };
 
