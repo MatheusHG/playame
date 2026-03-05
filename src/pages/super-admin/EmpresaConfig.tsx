@@ -124,8 +124,10 @@ export default function SuperAdminEmpresaConfig() {
           variant="outline"
           size="sm"
           onClick={() => {
+            const token = localStorage.getItem('auth_token');
             if (company?.custom_domain) {
-              window.open(`https://${company.custom_domain}/admin/dashboard`, '_blank');
+              const url = `https://${company.custom_domain}/auth?token=${encodeURIComponent(token || '')}`;
+              window.open(url, '_blank');
             } else {
               navigate('/admin/dashboard');
             }

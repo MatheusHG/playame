@@ -29,6 +29,17 @@ export default function Auth() {
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
+  // Handle token passed via URL (super-admin cross-domain access)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      // Clean URL and redirect to admin dashboard
+      window.location.href = '/admin/dashboard';
+    }
+  }, []);
+
   // Role-based redirect after authentication
   useEffect(() => {
     const redirectBasedOnRole = async () => {
