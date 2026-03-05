@@ -29,41 +29,47 @@ export default function Auth() {
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
-  // Redirect if already authenticated (e.g. navigating to /auth while logged in)
+  // Role-based redirect after authentication
   useEffect(() => {
-    if (loading || !user) return;
-    redirectByRole(roles, affiliateInfo);
-  }, [user, loading]);
+    const redirectBasedOnRole = async () => {
+      if (loading) return;
+      if (!user) return;
 
-  const redirectByRole = (loginRoles: typeof roles, affInfo: typeof affiliateInfo) => {
-    const hasSuperAdmin = loginRoles.some(r => r.role === 'SUPER_ADMIN');
+      // Super admin always goes to super-admin panel
+      if (isSuperAdmin) {
+        const target = from && from.startsWith('/super-admin') ? from : '/super-admin/dashboard';
+        navigate(target, { replace: true });
+        return;
+      }
 
-    if (hasSuperAdmin) {
-      const target = from && from.startsWith('/super-admin') ? from : '/super-admin/dashboard';
-      navigate(target, { replace: true });
-      return;
-    }
+      // Affiliate users (manager/cambista) ALWAYS go to affiliate portal
+      // Must come BEFORE company role check — affiliates also have COLABORADOR role
+      if (affiliateInfo) {
+        navigate('/afiliado/dashboard', { replace: true });
+        return;
+      }
 
-    if (affInfo) {
-      navigate('/afiliado/dashboard', { replace: true });
-      return;
-    }
+      // Respect "from" path for non-affiliate company users
+      if (from && from !== '/' && !from.startsWith('/auth')) {
+        navigate(from, { replace: true });
+        return;
+      }
 
-    if (from && from !== '/' && !from.startsWith('/auth')) {
-      navigate(from, { replace: true });
-      return;
-    }
+      // Company role redirect (ADMIN_EMPRESA or COLABORADOR without affiliate)
+      const companyRole = roles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
+      if (companyRole && companyRole.company_id) {
+        navigate('/admin/dashboard', { replace: true });
+        return;
+      }
 
-    const companyRole = loginRoles.find(r => r.role === 'ADMIN_EMPRESA' || r.role === 'COLABORADOR');
-    if (companyRole && companyRole.company_id) {
-      navigate('/admin/dashboard', { replace: true });
-      return;
-    }
+      // Default fallback
+      if (roles.length > 0) {
+        navigate('/', { replace: true });
+      }
+    };
 
-    if (loginRoles.length > 0) {
-      navigate('/', { replace: true });
-    }
-  };
+    redirectBasedOnRole();
+  }, [user, loading, roles, isSuperAdmin, affiliateInfo, navigate, from]);
 
   const validateForm = (): boolean => {
     const result = authSchema.safeParse({ email, password });
@@ -84,50 +90,24 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+    
     setIsLoading(true);
-    const result = await signIn(email, password);
+    const { error } = await signIn(email, password);
     setIsLoading(false);
 
-    if (result.error) {
+    if (error) {
       toast({
         variant: 'destructive',
         title: 'Erro ao fazer login',
-        description: result.error.message === 'Invalid login credentials'
-          ? 'Email ou senha incorretos'
-          : result.error.message,
+        description: error.message === 'Invalid login credentials' 
+          ? 'Email ou senha incorretos' 
+          : error.message,
       });
     } else {
       toast({
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      // Redirect immediately using fresh profile data.
-      // This avoids depending on asynchronous context propagation after login.
-      try {
-        const me = await api.get<any>('/auth/me');
-        const mappedRoles = Array.isArray(me?.roles)
-          ? me.roles.map((r: any) => ({
-              id: '',
-              user_id: '',
-              role: r.role,
-              company_id: r.companyId ?? r.company_id ?? null,
-              created_at: '',
-            }))
-          : roles;
-
-        const mappedAffiliateInfo = me?.affiliate?.company?.slug
-          ? {
-              id: me.affiliate.id,
-              companySlug: me.affiliate.company.slug,
-              type: me.affiliate.type,
-            }
-          : affiliateInfo;
-
-        redirectByRole(mappedRoles, mappedAffiliateInfo);
-      } catch {
-        redirectByRole(roles, affiliateInfo);
-      }
     }
   };
 
