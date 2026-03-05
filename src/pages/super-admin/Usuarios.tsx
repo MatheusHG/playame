@@ -120,10 +120,10 @@ export default function SuperAdminUsuarios() {
 
   const columns: Column<UserRoleWithDetails>[] = [
     {
-      key: 'user_id',
-      header: 'ID do Usuário',
+      key: 'user_email',
+      header: 'Email',
       render: (item) => (
-        <span className="font-mono text-xs">{item.user_id.slice(0, 8)}...</span>
+        <span className="text-sm">{item.user_email || '-'}</span>
       ),
     },
     {
