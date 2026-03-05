@@ -64,7 +64,12 @@ export async function login(email: string, password: string): Promise<{ token: s
   return { token, user: payload };
 }
 
-export async function register(email: string, password: string): Promise<{ token: string; user: JwtPayload }> {
+export async function register(
+  email: string,
+  password: string,
+  role?: string,
+  companyId?: string | null,
+): Promise<{ token: string; user: JwtPayload }> {
   if (!email || !password) {
     throw new BadRequestError('Email and password are required');
   }
@@ -75,27 +80,65 @@ export async function register(email: string, password: string): Promise<{ token
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  const existing = await prisma.users.findUnique({
+  let user = await prisma.users.findUnique({
     where: { email: normalizedEmail },
+    include: { user_roles: true },
   });
 
-  if (existing) {
-    throw new ConflictError('Email already registered');
+  if (user) {
+    // User exists — update password and reuse
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await prisma.users.update({
+      where: { id: user.id },
+      data: { password_hash: passwordHash, updated_at: new Date() },
+    });
+  } else {
+    // Create new user
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    user = await prisma.users.create({
+      data: {
+        email: normalizedEmail,
+        password_hash: passwordHash,
+      },
+      include: { user_roles: true },
+    });
   }
 
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  // Create role if provided and not already assigned
+  if (role) {
+    const existingRole = await prisma.user_roles.findFirst({
+      where: {
+        user_id: user.id,
+        role: role as any,
+        company_id: companyId || null,
+      },
+    });
 
-  const user = await prisma.users.create({
-    data: {
-      email: normalizedEmail,
-      password_hash: passwordHash,
-    },
+    if (!existingRole) {
+      await prisma.user_roles.create({
+        data: {
+          user_id: user.id,
+          role: role as any,
+          company_id: companyId || null,
+        },
+      });
+    }
+  }
+
+  // Fetch updated roles
+  const updatedRoles = await prisma.user_roles.findMany({
+    where: { user_id: user.id },
   });
+
+  const roles = updatedRoles.map((ur) => ({
+    role: ur.role,
+    companyId: ur.company_id,
+  }));
 
   const payload: JwtPayload = {
     userId: user.id,
     email: user.email,
-    roles: [],
+    roles,
   };
 
   const token = signToken(payload);
