@@ -84,13 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Set all state synchronously so React batches into single render
       const u = loginData.user;
+      const mappedRoles = mapRoles(u.roles || loginData.roles);
       setUser({ id: u.userId || u.id, email: u.email });
-      setRoles(mapRoles(u.roles || loginData.roles));
+      setRoles(mappedRoles);
       setAffiliateInfo(affInfo);
 
-      return { error: null };
+      return { error: null, roles: mappedRoles, affiliateInfo: affInfo };
     } catch (err) {
-      return { error: err instanceof Error ? err : new Error('Login failed') };
+      return { error: err instanceof Error ? err : new Error('Login failed'), roles: [] as UserRole[], affiliateInfo: null };
     }
   };
 
