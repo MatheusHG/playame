@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, GripVertical, Loader2, ImagePlus, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Loader2, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BannerManagerProps {
@@ -27,7 +27,7 @@ export function BannerManager({ companyId }: BannerManagerProps) {
   const queryClient = useQueryClient();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newBanner, setNewBanner] = useState({ image_url: '', redirect_url: '' });
-  const [uploading, setUploading] = useState(false);
+  // const [uploading, setUploading] = useState(false); // TODO: descomentar quando S3 estiver configurado
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['company-banners', companyId],
@@ -71,21 +71,21 @@ export function BannerManager({ companyId }: BannerManagerProps) {
     },
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const publicUrl = await api.upload(file, companyId, 'banners');
-      setNewBanner(prev => ({ ...prev, image_url: publicUrl }));
-      toast({ title: 'Imagem enviada!' });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao enviar imagem', description: error.message });
-    } finally {
-      setUploading(false);
-    }
-  };
+  // TODO: descomentar quando S3 estiver configurado
+  // const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+  //   setUploading(true);
+  //   try {
+  //     const publicUrl = await api.upload(file, companyId, 'banners');
+  //     setNewBanner(prev => ({ ...prev, image_url: publicUrl }));
+  //     toast({ title: 'Imagem enviada!' });
+  //   } catch (error: any) {
+  //     toast({ variant: 'destructive', title: 'Erro ao enviar imagem', description: error.message });
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   return (
     <Card>
@@ -129,23 +129,13 @@ export function BannerManager({ companyId }: BannerManagerProps) {
                       </Button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileUpload}
-                        disabled={uploading}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Cole a URL da imagem do banner"
+                        value={newBanner.image_url}
+                        onChange={(e) => setNewBanner(prev => ({ ...prev, image_url: e.target.value }))}
                       />
-                      {uploading ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                      ) : (
-                        <>
-                          <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
-                          <span className="text-sm text-muted-foreground">Clique para fazer upload</span>
-                        </>
-                      )}
-                    </label>
+                    </div>
                   )}
                 </div>
 

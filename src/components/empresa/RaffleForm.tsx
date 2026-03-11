@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Loader2, ImagePlus, Trash2, Calculator, Info, FileText,
+  Loader2, Trash2, Calculator, Info, FileText,
   Hash, Trophy, Award, Tag, ChevronLeft, ChevronRight,
-  DollarSign, Calendar, Settings2, BarChart3,
+  DollarSign, Calendar, Settings2, BarChart3, Link as LinkIcon,
 } from 'lucide-react';
 import { PrizeTiersEditorControlled, type PrizeTierInput } from '@/components/empresa/PrizeTiersEditor';
 import { RafflePromotionsManager } from '@/components/empresa/RafflePromotionsManager';
@@ -118,7 +118,8 @@ export function RaffleForm({
   submitLabel = 'Salvar',
 }: RaffleFormProps) {
   const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
+  // const [uploading, setUploading] = useState(false); // TODO: descomentar quando S3 estiver configurado
+  const [imageUrlInput, setImageUrlInput] = useState(defaultValues?.image_url || '');
   const [simSaleCount, setSimSaleCount] = useState(100);
   const [activeTab, setActiveTab] = useState('geral');
 
@@ -207,19 +208,26 @@ export function RaffleForm({
     promocoes: true,
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // TODO: descomentar quando S3 estiver configurado
+  // const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+  //   setUploading(true);
+  //   try {
+  //     const publicUrl = await api.upload(file, companyId, 'raffles');
+  //     setValue('image_url', publicUrl);
+  //     toast({ title: 'Imagem enviada!' });
+  //   } catch (error: any) {
+  //     toast({ variant: 'destructive', title: 'Erro ao enviar imagem', description: error.message });
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
-    setUploading(true);
-    try {
-      const publicUrl = await api.upload(file, companyId, 'raffles');
-      setValue('image_url', publicUrl);
-      toast({ title: 'Imagem enviada!' });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao enviar imagem', description: error.message });
-    } finally {
-      setUploading(false);
+  const handleImageUrlSubmit = () => {
+    const trimmed = imageUrlInput.trim();
+    if (trimmed) {
+      setValue('image_url', trimmed);
     }
   };
 
@@ -434,7 +442,7 @@ export function RaffleForm({
               <p className="text-xs text-muted-foreground">Regras exibidas para os jogadores na página do sorteio</p>
             </div>
 
-            {/* Image Upload */}
+            {/* Image URL */}
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Imagem do Sorteio (Banner)</Label>
               {imageUrl ? (
@@ -445,31 +453,24 @@ export function RaffleForm({
                     size="sm"
                     variant="destructive"
                     className="absolute top-2 right-2 rounded-xl"
-                    onClick={() => setValue('image_url', null)}
+                    onClick={() => { setValue('image_url', null); setImageUrlInput(''); }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center h-32 max-w-md border-2 border-dashed rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    disabled={uploading}
+                <div className="flex gap-2 max-w-md">
+                  <Input
+                    placeholder="Cole a URL da imagem"
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleImageUrlSubmit(); } }}
+                    className="rounded-xl"
                   />
-                  {uploading ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  ) : (
-                    <>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full mb-2" style={{ backgroundColor: '#DBEAFE' }}>
-                        <ImagePlus className="h-5 w-5" style={{ color: '#2563EB' }} />
-                      </div>
-                      <span className="text-sm text-muted-foreground">Clique para fazer upload</span>
-                    </>
-                  )}
-                </label>
+                  <Button type="button" variant="outline" onClick={handleImageUrlSubmit} disabled={!imageUrlInput.trim()} className="rounded-xl">
+                    <LinkIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
               <p className="text-xs text-muted-foreground">A imagem será exibida no card do sorteio na landing page</p>
             </div>

@@ -100,29 +100,26 @@ class ApiClient {
     return this.request<T>('GET', path, { params, usePlayerAuth: true });
   }
 
-  // File upload (multipart/form-data)
-  async upload(file: File, companyId: string, folder: string): Promise<{ url: string }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('companyId', companyId);
-    formData.append('folder', folder);
-
-    const token = this.getToken();
-    const res = await fetch(`${this.baseUrl}/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Upload failed' }));
-      throw new Error(errorData.error || 'Upload failed');
-    }
-
-    return res.json();
-  }
+  // TODO: descomentar quando S3 estiver configurado
+  // async upload(file: File, companyId: string, folder: string): Promise<{ url: string }> {
+  //   const formData = new FormData();
+  //   formData.append('file', file);
+  //   formData.append('companyId', companyId);
+  //   formData.append('folder', folder);
+  //   const token = this.getToken();
+  //   const res = await fetch(`${this.baseUrl}/upload`, {
+  //     method: 'POST',
+  //     headers: {
+  //       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  //     },
+  //     body: formData,
+  //   });
+  //   if (!res.ok) {
+  //     const errorData = await res.json().catch(() => ({ error: 'Upload failed' }));
+  //     throw new Error(errorData.error || 'Upload failed');
+  //   }
+  //   return res.json();
+  // }
 }
 
 export const api = new ApiClient(API_BASE);

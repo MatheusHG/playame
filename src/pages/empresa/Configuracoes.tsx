@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, Loader2, ImagePlus, Trash2, Palette, Link as LinkIcon, Image as ImageIcon, MessageCircle, Info, Phone } from 'lucide-react';
+import { Save, Loader2, Trash2, Palette, Link as LinkIcon, Image as ImageIcon, MessageCircle, Info, Phone } from 'lucide-react';
 import { BannerManager } from '@/components/empresa/BannerManager';
 import { FooterSettingsManager } from '@/components/empresa/FooterSettingsManager';
 import type { LucideIcon } from 'lucide-react';
@@ -57,7 +57,7 @@ export default function EmpresaConfiguracoes() {
     about_us: '',
     contact_info: { whatsapp: '', phone: '', email: '', address: '', instagram: '', facebook: '' },
   });
-  const [uploading, setUploading] = useState(false);
+  // const [uploading, setUploading] = useState(false); // TODO: descomentar quando S3 estiver configurado
 
   useEffect(() => {
     if (company) {
@@ -108,22 +108,21 @@ export default function EmpresaConfiguracoes() {
     updateMutation.mutate(formData);
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !company) return;
-
-    setUploading(true);
-    try {
-      const { url } = await api.upload(file, company.id, 'logo');
-
-      setFormData(prev => ({ ...prev, logo_url: url }));
-      toast({ title: 'Logo enviado!' });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao enviar logo', description: error.message });
-    } finally {
-      setUploading(false);
-    }
-  };
+  // TODO: descomentar quando S3 estiver configurado
+  // const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (!file || !company) return;
+  //   setUploading(true);
+  //   try {
+  //     const { url } = await api.upload(file, company.id, 'logo');
+  //     setFormData(prev => ({ ...prev, logo_url: url }));
+  //     toast({ title: 'Logo enviado!' });
+  //   } catch (error: any) {
+  //     toast({ variant: 'destructive', title: 'Erro ao enviar logo', description: error.message });
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   if (loading) {
     return <LoadingState fullScreen message="Carregando empresa..." />;
@@ -225,25 +224,14 @@ export default function EmpresaConfiguracoes() {
                             </Button>
                           </div>
                         ) : (
-                          <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleLogoUpload}
-                              disabled={uploading}
+                          <div className="flex gap-2 max-w-sm">
+                            <Input
+                              placeholder="Cole a URL do logo"
+                              value={formData.logo_url}
+                              onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
+                              className="rounded-xl"
                             />
-                            {uploading ? (
-                              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                            ) : (
-                              <>
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full mb-2" style={{ backgroundColor: '#F3F4F6' }}>
-                                  <ImagePlus className="h-4 w-4" style={{ color: '#6B7280' }} />
-                                </div>
-                                <span className="text-xs text-muted-foreground">Upload</span>
-                              </>
-                            )}
-                          </label>
+                          </div>
                         )}
                       </div>
                       <div className="space-y-2">
